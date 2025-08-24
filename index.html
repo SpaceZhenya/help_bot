@@ -61,6 +61,39 @@
 		"Франция": { "полиция": "+17", "пожарная": "+18", "скорая": "+15", "спасатели": "+112" }
 	};
 
+	// ===== Алиасы стран и нормализация =====
+	const countryAliases = {
+		"россия": "Россия",
+		"рф": "Россия",
+		"российская федерация": "Россия",
+		"russia": "Россия",
+		"сша": "США",
+		"usa": "США",
+		"u.s.a": "США",
+		"united states": "США",
+		"united states of america": "США",
+		"соединенные штаты": "США",
+		"соединённые штаты": "США",
+		"соединенные штаты америки": "США",
+		"соединённые штаты америки": "США",
+		"украина": "Украина",
+		"ukraine": "Украина",
+		"венгрия": "Венгрия",
+		"hungary": "Венгрия",
+		"франция": "Франция",
+		"france": "Франция"
+	};
+
+	function normalizeCountryName(name) {
+		if (!name) return "Неизвестно";
+		if (emergencyNumbers[name]) return name;
+		const key = String(name).toLowerCase().trim().replace(/\./g, "");
+		if (countryAliases[key]) return countryAliases[key];
+		const foundAlias = Object.keys(countryAliases).find(alias => key.includes(alias));
+		if (foundAlias) return countryAliases[foundAlias];
+		return name;
+	}
+
 	let langCode = "ru";
 	let currentCountry = "Неизвестно";
 
@@ -117,7 +150,9 @@
 		try {
 			const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
 			const data = await res.json();
-			return data.address.country || "Неизвестно";
+			const raw = data.address.country || "Неизвестно";
+			const normalized = normalizeCountryName(raw);
+			return normalized || raw;
 		} catch(e) {
 			return "Неизвестно";
 		}
@@ -132,9 +167,11 @@
 			if (help === "да") speak("Рекомендую обратиться к врачу.", lang);
 			else speak("Будьте осторожны.", lang);
 		} else if (sound === "вор") {
-			speak(`Звоню в полицию: ${emergencyNumbers[country]?.["полиция"] || "недоступно"}`, lang);
+			const normalizedCountry = normalizeCountryName(country);
+			speak(`Звоню в полицию: ${emergencyNumbers[normalizedCountry]?.["полиция"] || "недоступно"}`, lang);
 		} else if (sound === "пожар") {
-			speak(`Звоню в пожарную службу: ${emergencyNumbers[country]?.["пожарная"] || "недоступно"}`, lang);
+			const normalizedCountry = normalizeCountryName(country);
+			speak(`Звоню в пожарную службу: ${emergencyNumbers[normalizedCountry]?.["пожарная"] || "недоступно"}`, lang);
 		} else {
 			speak("Звук не распознан или нет опасности.", lang);
 		}
@@ -142,8 +179,9 @@
 
 	// ===== Экстренный звонок =====
 	function emergencyCall(country, service, lang) {
-		if (emergencyNumbers[country] && emergencyNumbers[country][service]) {
-			speak(`Звоню в ${service}: ${emergencyNumbers[country][service]}`, lang);
+		const normalizedCountry = normalizeCountryName(country);
+		if (emergencyNumbers[normalizedCountry] && emergencyNumbers[normalizedCountry][service]) {
+			speak(`Звоню в ${service}: ${emergencyNumbers[normalizedCountry][service]}`, lang);
 		} else {
 			speak(`Служба ${service} недоступна в вашей стране`, lang);
 		}
@@ -261,6 +299,17 @@
 			} else {
 				speak("Сначала скажите 'начать' для определения местоположения.", langCode);
 			}
+			return;
+		}
+
+		// Установка страны голосом: "страна Франция" или "country France"
+		const countrySetMatch = text.match(/(?:страна|country)\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/);
+		if (countrySetMatch) {
+			const candidate = countrySetMatch[1].trim();
+			const canon = normalizeCountryName(candidate);
+			currentCountry = canon;
+			document.getElementById("status").innerText = `Ваша страна: ${currentCountry}`;
+			speak(`Страна установлена: ${currentCountry}`, langCode);
 			return;
 		}
 
