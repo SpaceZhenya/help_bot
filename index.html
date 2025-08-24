@@ -1,0 +1,232 @@
+ZhenyaOd, [24.08.2025 18:08]
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Экстренные напоминания и озвучка</title>
+</head>
+<body>
+<h1>Экстренные звуки и напоминания</h1>
+
+<label>Введите язык (ru, en, uk, hu, fr): </label>
+<input type="text" id="langInput" value="ru">
+<button onclick="startApp()">Начать</button>
+
+<p id="status"></p>
+
+<script>
+const emergencyNumbers = {
+  "Россия": { полиция: "+78001005050", пожарная: "+101", скорая: "+103", спасатели: "+112" },
+  "США": { полиция: "+911", пожарная: "+911", скорая: "+911", спасатели: "+911" },
+  "Украина": { полиция: "+102", пожарная: "+101", скорая: "+103", спасатели: "+112" },
+  "Венгрия": { полиция: "+112", пожарная: "+105", скорая: "+104", спасатели: "+112" },
+  "Франция": { полиция: "+17", пожарная: "+18", скорая: "+15", спасатели: "+112" }
+};
+
+// Функция озвучки текста
+function speak(text, lang) {
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = lang;
+    speechSynthesis.speak(utter);
+}
+
+// Получение геопозиции через браузер
+async function getLocation() {
+    return new Promise((resolve, reject) => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                resolve({lat: pos.coords.latitude, lon: pos.coords.longitude});
+            }, err => {
+                resolve(null);
+            });
+        } else resolve(null);
+    });
+}
+
+// Получение погоды через wttr.in
+async function getWeather(lat, lon) {
+    try {
+        const url = https://wttr.in/${lat},${lon}?format=j1;
+        const res = await fetch(url);
+        const data = await res.json();
+        const current = data.current_condition[0];
+        return { temp: current.temp_C, desc: current.weatherDesc[0].value };
+    } catch(e) {
+        console.log("Ошибка получения погоды:", e);
+        return null;
+    }
+}
+
+// Обработка экстренных звуков
+function emergencySoundDetection() {
+    const sound = prompt("Какой звук вы услышали? (крик, стон, плач, вор, пожар или 'нет')");
+    if (["крик","стон","плач"].includes(sound)) {
+        const help = prompt("Вы чувствуете боль или нужна помощь? (да/нет)");
+        if (help === "да") speak("Рекомендую обратиться к врачу.", langCode);
+        else speak("Будьте осторожны.", langCode);
+    } else if (sound === "вор") {
+        speak("Звоню в полицию.", langCode);
+    } else if (sound === "пожар") {
+        speak("Звоню в пожарную службу.", langCode);
+    } else {
+        speak("Звук не распознан.", langCode);
+    }
+}
+
+// Основная функция
+let langCode = "ru";
+async function startApp() {
+    langCode = document.getElementById("langInput").value || "ru";
+    document.getElementById("status").innerText = "Получаем местоположение...";
+    const loc = await getLocation();
+    if (loc) {
+        document.getElementById("status").innerText = Ваши координаты: ${loc.lat.toFixed(2)}, ${loc.lon.toFixed(2)};
+        const weather = await getWeather(loc.lat, loc.lon);
+        if (weather) speak(Сейчас температура ${weather.temp} градусов, ${weather.desc}, langCode);
+    } else {
+        speak("Не удалось определить местоположение.", langCode);
+    }
+    emergencySoundDetection();
+}
+</script>
+</body>
+</html>
+
+ZhenyaOd, [24.08.2025 18:13]
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Экстренные службы и напоминания</title>
+</head>
+<body>
+<h1>Экстренные службы и напоминания</h1>
+
+<label>Выберите язык (ru, en, uk, hu, fr): </label>
+<input type="text" id="langInput" value="ru">
+<button onclick="startApp()">Начать</button>
+
+<p id="status"></p>
+<p id="weather"></p>
+<p id="reminder"></p>
+
+<script>
+// ===== Словарь экстренных номеров =====
+const emergencyNumbers = {
+    "Россия": { полиция: "+78001005050", пожарная: "+101", скорая: "+103", спасатели: "+112" },
+    "США": { полиция: "+911", пожарная: "+911", скорая: "+911", спасатели: "+911" },
+    "Украина": { полиция: "+102", пожарная: "+101", скорая: "+103", спасатели: "+112" },
+    "Венгрия": { полиция: "+112", пожарная: "+105", скорая: "+104", спасатели: "+112" },
+    "Франция": { полиция: "+17", пожарная: "+18", скорая: "+15", спасатели: "+112" }
+};
+
+// ===== Функция озвучки =====
+function speak(text, lang) {
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = lang;
+    speechSynthesis.speak(utter);
+}
+
+// ===== Получение геопозиции =====
+async function getLocation() {
+    return new Promise((resolve) => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                resolve({lat: pos.coords.latitude, lon: pos.coords.longitude});
+            }, err => resolve(null));
+        } else resolve(null);
+    });
+}
+
+// ===== Получение погоды через wttr.in =====
+async function getWeather(lat, lon) {
+    try {
+        const url = https://wttr.in/${lat},${lon}?format=j1;
+        const res = await fetch(url);
+        const data = await res.json();
+        const current = data.current_condition[0];
+        return { temp: current.temp_C, desc: current.weatherDesc[0].value };
+    } catch(e) {
+        console.log("Ошибка получения погоды:", e);
+        return null;
+    }
+}
+
+// ===== Определение страны по координатам через геокодинг =====
+async function getCountry(lat, lon) {
+    try {
+        const res = await fetch(https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon});
+        const data = await res.json();
+        return data.address.country || "Неизвестно";
+    } catch(e) {
+        return "Неизвестно";
+    }
+}
+
+// ===== Экстренные события =====
+function emergencySoundDetection(country, lang) {
+    const sound = prompt("Какой звук вы услышали? (крик, стон, плач, вор, пожар или 'нет')").toLowerCase();
+
+    if (["крик","стон","плач"].includes(sound)) {
+        const help = prompt("Вы чувствуете боль или нужна помощь? (да/нет)").toLowerCase();
+        if (help === "да") speak("Рекомендую обратиться к врачу.", lang);
+        else speak("Будьте осторожны.", lang);
+    } else if (sound === "вор") {
+        speak(Звоню в полицию: ${emergencyNumbers[country].полиция}, lang);
+    } else if (sound === "пожар") {
+        speak(Звоню в пожарную службу: ${emergencyNumbers[country].пожарная}, lang);
+    } else {
+        speak("Звук не распознан или нет опасности.", lang);
+    }
+}
+
+// ===== Установка напоминания =====
+function setReminder(reminderTime, task, lat, lon, lang) {
+    const interval = setInterval(async () => {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2,'0');
+        const m = String(now.getMinutes()).padStart(2,'0');
+        const timeStr = ${h}:${m};
+        if (timeStr === reminderTime) {
+            const weather = await getWeather(lat, lon);
+            let msg = Напоминаю: ${task}.;
+            if (weather) msg +=  Температура ${weather.temp}°C, погода: ${weather.desc}.;
+            speak(msg, lang);
+            document.getElementById("reminder").innerText = msg;
+            clearInterval(interval);
+        }
+    }, 30000); // каждые 30 секунд
+}
+
+// ===== Основная функция =====
+
+ZhenyaOd, [24.08.2025 18:13]
+async function startApp() {
+    const langCode = document.getElementById("langInput").value || "ru";
+    document.getElementById("status").innerText = "Определяем местоположение...";
+    const loc = await getLocation();
+    if (!loc) {
+        speak("Не удалось определить местоположение.", langCode);
+        return;
+    }
+
+    const country = await getCountry(loc.lat, loc.lon);
+    document.getElementById("status").innerText = Ваша страна: ${country};
+
+    const weather = await getWeather(loc.lat, loc.lon);
+    if (weather) {
+        document.getElementById("weather").innerText = Погода: ${weather.temp}°C, ${weather.desc};
+        speak(Сейчас температура ${weather.temp} градусов, ${weather.desc}, langCode);
+    }
+
+    // Проверка экстренного звука
+    if (emergencyNumbers[country]) {
+        emergencySoundDetection(country, langCode);
+    }
+
+    // Пример напоминания на 15:00
+    setReminder("15:00", "гулять на улице", loc.lat, loc.lon, langCode);
+}
+</script>
+</body>
+</html>
