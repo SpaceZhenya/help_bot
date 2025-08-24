@@ -96,6 +96,7 @@
 
 	let langCode = "ru";
 	let currentCountry = "Неизвестно";
+	let weatherRefreshInterval = null;
 
 	// ===== Языковые коды для TTS/STT =====
 	function mapLangToBCP47(lang) {
@@ -143,6 +144,20 @@
 			console.log("Ошибка получения погоды:", e);
 			return null;
 		}
+	}
+
+	// ===== Периодическое обновление погоды во время работы =====
+	function startWeatherAutoRefresh(lat, lon) {
+		if (weatherRefreshInterval) {
+			clearInterval(weatherRefreshInterval);
+			weatherRefreshInterval = null;
+		}
+		weatherRefreshInterval = setInterval(async () => {
+			const weather = await getWeather(lat, lon);
+			if (weather) {
+				document.getElementById("weather").innerText = `Погода: ${weather.temp}°C, ${weather.desc}`;
+			}
+		}, 600000); // каждые 10 минут
 	}
 
 	// ===== Определение страны по координатам через геокодинг =====
@@ -353,6 +368,9 @@
 			document.getElementById("weather").innerText = `Погода: ${weather.temp}°C, ${weather.desc}`;
 			speak(`Сейчас температура ${weather.temp} градусов, ${weather.desc}`, langCode);
 		}
+
+		// Запускаем автообновление погоды во время работы приложения
+		startWeatherAutoRefresh(loc.lat, loc.lon);
 
 		// Пример напоминания (можно голосом настроить другой)
 		// setReminder("15:00", "гулять на улице", loc.lat, loc.lon, langCode);
