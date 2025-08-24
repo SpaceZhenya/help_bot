@@ -46,7 +46,7 @@
 	<div class="panel" id="voicePanel">
 		<strong>Голосовое управление</strong>
 		<span id="micState" class="badge off">микрофон: выкл</span>
-		<div class="status">Команда примеры: "начать", "язык ru", "погода", "полиция", "напомни в 15:30 позвонить маме"</div>
+		<div class="status">Команда примеры: "начать", "язык ru", "Франция полиция", "в России пожарная", "напомни в 15:30 позвонить маме"</div>
 		<button id="micToggle">Включить микрофон</button>
 		<span id="recognized">---</span>
 	</div>
@@ -60,6 +60,30 @@
 		"Венгрия": { "полиция": "+112", "пожарная": "+105", "скорая": "+104", "спасатели": "+112" },
 		"Франция": { "полиция": "+17", "пожарная": "+18", "скорая": "+15", "спасатели": "+112" }
 	};
+
+	// ===== Синонимы стран (полные имена и падежи) =====
+	const countryAliases = {
+		"Россия": ["россия", "рф", "в россии", "россии"],
+		"США": ["сша", "америка", "в сша", "соединенные штаты", "соединенных штатов", "соединенных штатах", "usa", "united states"],
+		"Украина": ["украина", "в украине", "украине", "ukraine"],
+		"Венгрия": ["венгрия", "в венгрии", "венгрии", "hungary"],
+		"Франция": ["франция", "во франции", "франции", "france"]
+	};
+	function resolveCountryFromText(text) {
+		const t = (text || "").toLowerCase();
+		let best = null;
+		let bestLen = 0;
+		for (const canonical in countryAliases) {
+			const aliases = countryAliases[canonical];
+			for (const alias of aliases) {
+				if (t.includes(alias) && alias.length > bestLen) {
+					best = canonical;
+					bestLen = alias.length;
+				}
+			}
+		}
+		return best;
+	}
 
 	let langCode = "ru";
 	let currentCountry = "Неизвестно";
@@ -250,6 +274,24 @@
 			return;
 		}
 
+		// ---- Полные имена стран + службы ----
+		const countryFromText = resolveCountryFromText(text);
+		const service = text.includes("полици") ? "полиция" :
+			text.includes("пожарн") ? "пожарная" :
+			text.includes("скора") ? "скорая" : null;
+		if (countryFromText && service) {
+			emergencyCall(countryFromText, service, langCode);
+			currentCountry = countryFromText;
+			document.getElementById("status").innerText = `Ваша страна: ${currentCountry}`;
+			return;
+		}
+		if (countryFromText && !service) {
+			currentCountry = countryFromText;
+			document.getElementById("status").innerText = `Ваша страна: ${currentCountry}`;
+			speak(`Страна установлена: ${currentCountry}`, langCode);
+			return;
+		}
+
 		if (text.includes("погода")) {
 			if (lastLocation) {
 				getWeather(lastLocation.lat, lastLocation.lon).then(w => {
@@ -297,6 +339,8 @@
 
 		lastLocation = loc;
 		currentCountry = await getCountry(loc.lat, loc.lon);
+		const normalized = resolveCountryFromText(currentCountry);
+		if (normalized) currentCountry = normalized;
 		document.getElementById("status").innerText = `Ваша страна: ${currentCountry}`;
 
 		const weather = await getWeather(loc.lat, loc.lon);
