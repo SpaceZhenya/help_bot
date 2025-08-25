@@ -267,6 +267,84 @@
 		}
 	};
 
+	// ===== Командные паттерны по языкам (обрабатываем только выбранный язык) =====
+	const commandPatterns = {
+		ru: {
+			stopKeywords: ["стоп", "остановить", "выключить микрофон"],
+			startKeywords: ["начать", "старт"],
+			weatherKeywords: ["погода"],
+			langRegex: /\bязык\s+(ru|en|uk|hu|fr)\b/,
+			countryRegex: /\bстрана\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/,
+			services: [
+				{ keywords: ["полици"], service: "полиция" },
+				{ keywords: ["пожарн"], service: "пожарная" },
+				{ keywords: ["скора"], service: "скорая" }
+			],
+			reminderRegex: /\bнапомни\s+(?:в|на)\s+(\d{1,2}[:\.]\d{2})\s+(.+)/
+		},
+		en: {
+			stopKeywords: ["stop", "turn off mic", "microphone off"],
+			startKeywords: ["start", "begin"],
+			weatherKeywords: ["weather"],
+			langRegex: /\blanguage\s+(ru|en|uk|hu|fr)\b/,
+			countryRegex: /\bcountry\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/,
+			services: [
+				{ keywords: ["police"], service: "полиция" },
+				{ keywords: ["fire", "firefighters"], service: "пожарная" },
+				{ keywords: ["ambulance", "paramedic"], service: "скорая" }
+			],
+			reminderRegex: /\bremind\s+(?:at|for)\s+(\d{1,2}[:\.]\d{2})\s+(.+)/
+		},
+		uk: {
+			stopKeywords: ["стоп", "зупини", "вимкни мікрофон"],
+			startKeywords: ["почати", "старт"],
+			weatherKeywords: ["погода"],
+			langRegex: /\bмова\s+(ru|en|uk|hu|fr)\b/,
+			countryRegex: /\bкраїна\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/,
+			services: [
+				{ keywords: ["поліці"], service: "полиция" },
+				{ keywords: ["пожеж"], service: "пожарная" },
+				{ keywords: ["швидк"], service: "скорая" }
+			],
+			reminderRegex: /\bнагадай\s+(?:о|на)\s+(\d{1,2}[:\.]\d{2})\s+(.+)/
+		},
+		hu: {
+			stopKeywords: ["állj", "állítsd le", "kapcsold ki a mikrofont"],
+			startKeywords: ["indítás", "indul"],
+			weatherKeywords: ["időjárás"],
+			langRegex: /\bnyelv\s+(ru|en|uk|hu|fr)\b/,
+			countryRegex: /\bország\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/,
+			services: [
+				{ keywords: ["rendőrs"], service: "полиция" },
+				{ keywords: ["tűzolt"], service: "пожарная" },
+				{ keywords: ["mentő"], service: "скорая" }
+			],
+			reminderRegex: /\bemlékeztess\s+(\d{1,2}[:\.]\d{2})(?:-kor)?\s+(.+)/
+		},
+		fr: {
+			stopKeywords: ["arrête", "arrêter", "désactiver le micro", "arrête micro"],
+			startKeywords: ["démarrer", "commencer"],
+			weatherKeywords: ["météo"],
+			langRegex: /\blangue\s+(ru|en|uk|hu|fr)\b/,
+			countryRegex: /\bpays\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/,
+			services: [
+				{ keywords: ["police"], service: "полиция" },
+				{ keywords: ["pompier", "pompiers", "feu"], service: "пожарная" },
+				{ keywords: ["ambulance"], service: "скорая" }
+			],
+			reminderRegex: /\brappelle\s+à\s+(\d{1,2}[:\.]\d{2})\s+(.+)/
+		}
+	};
+
+	// ===== Ключевые слова для распознавания звуков и ответов по языкам =====
+	const soundKeywords = {
+		ru: { harm: ["крик", "стон", "плач"], thief: "вор", fire: "пожар", yes: "да", no: "нет" },
+		en: { harm: ["scream", "groan", "cry"], thief: "thief", fire: "fire", yes: "yes", no: "no" },
+		uk: { harm: ["крик", "стогін", "плач"], thief: "злодій", fire: "пожежа", yes: "так", no: "ні" },
+		hu: { harm: ["sikoly", "nyögés", "sírás"], thief: "tolvaj", fire: "tűz", yes: "igen", no: "nem" },
+		fr: { harm: ["cri", "gémissement", "pleur"], thief: "voleur", fire: "feu", yes: "oui", no: "non" }
+	};
+
 	function tt(key, ...args) {
 		const val = (i18n[langCode] || i18n.ru)[key];
 		return typeof val === 'function' ? val(...args) : val;
@@ -410,16 +488,17 @@
 
 	// ===== Экстренные события =====
 	function emergencySoundDetection(country, lang) {
+		const dict = soundKeywords[langCode] || soundKeywords.ru;
 		const sound = prompt(tt('prompt_sound'))?.toLowerCase();
 
-		if (["крик","стон","плач"].includes(sound)) {
+		if (dict.harm.includes(sound)) {
 			const help = prompt(tt('prompt_help'))?.toLowerCase();
-			if (help === "да") speak(tt('advise_doctor'), lang);
+			if (help === dict.yes) speak(tt('advise_doctor'), lang);
 			else speak(tt('be_careful'), lang);
-		} else if (sound === "вор") {
+		} else if (sound === dict.thief) {
 			const normalizedCountry = normalizeCountryName(country);
 			speak(tt('call_police_tts', emergencyNumbers[normalizedCountry]?.["полиция"] || "n/a"), lang);
-		} else if (sound === "пожар") {
+		} else if (sound === dict.fire) {
 			const normalizedCountry = normalizeCountryName(country);
 			speak(tt('call_fire_tts', emergencyNumbers[normalizedCountry]?.["пожарная"] || "n/a"), lang);
 		} else {
@@ -521,17 +600,19 @@
 	function handleVoiceCommand(originalText) {
 		const text = originalText.toLowerCase();
 
-		if (["стоп", "остановить", "выключить микрофон"].some(k => text.includes(k))) {
+		const patterns = commandPatterns[langCode] || commandPatterns.ru;
+
+		if (patterns.stopKeywords.some(k => text.includes(k))) {
 			stopListening();
 			return;
 		}
 
-		if (["начать", "старт"].some(k => text.includes(k))) {
+		if (patterns.startKeywords.some(k => text.includes(k))) {
 			startApp();
 			return;
 		}
 
-		const langMatch = text.match(/язык\s+(ru|en|uk|hu|fr)/);
+		const langMatch = text.match(patterns.langRegex);
 		if (langMatch) {
 			setLanguage(langMatch[1]);
 			document.getElementById("langInput").value = langCode;
@@ -539,7 +620,7 @@
 			return;
 		}
 
-		if (text.includes("погода")) {
+		if (patterns.weatherKeywords.some(k => text.includes(k))) {
 			if (lastLocation) {
 				getWeather(lastLocation.lat, lastLocation.lon).then(w => {
 					if (w) {
@@ -553,8 +634,8 @@
 			return;
 		}
 
-		// Установка страны голосом: "страна Франция" или "country France"
-		const countrySetMatch = text.match(/(?:страна|country)\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/);
+		// Установка страны только через выбранный язык
+		const countrySetMatch = text.match(patterns.countryRegex);
 		if (countrySetMatch) {
 			const candidate = countrySetMatch[1].trim();
 			const canon = normalizeCountryName(candidate);
@@ -564,11 +645,14 @@
 			return;
 		}
 
-		if (text.includes("полици")) { emergencyCall(currentCountry, 'полиция', langCode); return; }
-		if (text.includes("пожарн")) { emergencyCall(currentCountry, 'пожарная', langCode); return; }
-		if (text.includes("скора")) { emergencyCall(currentCountry, 'скорая', langCode); return; }
+		for (const svc of patterns.services) {
+			if (svc.keywords.some(k => text.includes(k))) {
+				emergencyCall(currentCountry, svc.service, langCode);
+				return;
+			}
+		}
 
-		const remindMatch = text.match(/напомни\s+(?:в|на)\s+(\d{1,2}[:\.]\d{2})\s+(.+)/);
+		const remindMatch = text.match(patterns.reminderRegex);
 		if (remindMatch) {
 			const rawTime = remindMatch[1].replace('.', ':');
 			const task = remindMatch[2].trim();
