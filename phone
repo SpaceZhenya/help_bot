@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Звонок через Twilio</title>
+</head>
+<body>
+    <input type="text" id="phone" placeholder="+380954156424">
+    <button id="startCall">Начать</button>
+
+    <script>
+        document.getElementById('startCall').addEventListener('click', async () => {
+            const phone = document.getElementById('phone').value;
+            const res = await fetch('/call', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone })
+            });
+            const data = await res.json();
+            console.log(data);
+            alert('Звонок инициирован!');
+        });
+    </script>
+</body>
+</html>
