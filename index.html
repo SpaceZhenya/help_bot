@@ -1,135 +1,767 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>Emergency & Reminders</title>
-<style>
-body { font-family: Arial, sans-serif; margin: 20px; }
-button { margin: 5px; }
-#status, #weather, #country { margin: 10px 0; }
-</style>
+	<meta charset="UTF-8">
+	<title>Экстренные службы и напоминания</title>
+	<style>
+		body { font-family: sans-serif; background: #f0f0f0; padding: 20px; }
+		.panel { background: #fff; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+		button { margin: 5px 0; padding: 10px 15px; cursor: pointer; }
+		.status { color: #555; font-size: 0.9em; }
+		.badge { display: inline-block; padding: 2px 6px; border-radius: 6px; font-size: 12px; background: #eee; margin-left: 6px; }
+		.badge.on { background: #dff6dd; color: #1a7f37; }
+		.badge.off { background: #ffe2e2; color: #a40000; }
+		#recognized { display: block; margin-top: 8px; color: #333; }
+		#reminderList { margin-top: 10px; }
+		.reminder-item { display:flex; justify-content:space-between; padding:6px 8px; border-radius:6px; background:#fafafa; margin-bottom:6px; align-items:center; }
+		.reminder-text { margin-left:8px; flex:1; }
+		.small { font-size:0.85em; color:#666; }
+	</style>
 </head>
 <body>
+	<h1 data-i18n="title">Экстренные службы и напоминания</h1>
 
-<h1 id="title">Экстренные службы и напоминания</h1>
+	<div class="panel">
+		<label data-i18n="choose_language">Выберите язык (ru, en, uk, hu, fr): </label>
+		<input type="text" id="langInput" value="ru">
+		<button id="startBtn" onclick="startApp()" data-i18n="start">Начать</button>
+	</div>
 
-<label id="status_label">Статус:</label>
-<span id="status">Не начато</span><br>
+	<div class="panel" id="statusPanel">
+		<strong data-i18n="status_label">Статус:</strong> <span id="status" data-i18n="status_not_started">Не начато</span>
+	</div>
 
-<label id="country_label">Ваша страна:</label>
-<span id="country">Не определено</span><br>
+	<div class="panel" id="weatherPanel">
+		<strong data-i18n="weather_label">Погода:</strong> <span id="weather">---</span>
+	</div>
 
-<label id="weather_label">Погода:</label>
-<span id="weather">Не определено</span><br>
+	<!-- Ручной ввод напоминаний -->
+	<div class="panel" id="reminderPanel">
+		<strong data-i18n="reminders_label">Напоминания:</strong>
+		<div id="reminderList"><span class="small">---</span></div>
 
-<button id="startBtn">Начать</button>
-<select id="langSelect">
-<option value="ru">Русский</option>
-<option value="en">English</option>
-<option value="uk">Українська</option>
-<option value="hu">Magyar</option>
-<option value="fr">Français</option>
-</select>
+		<div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+			<input type="time" id="reminderTime" style="min-width:110px;">
+			<input type="text" id="reminderText" placeholder="Текст напоминания" style="flex:1;">
+			<button onclick="addReminder()" data-i18n="add_reminder">Добавить</button>
+		</div>
+	</div>
 
-<div id="reminders"></div>
+	<div class="panel" id="emergencyPanel">
+		<strong data-i18n="emergency_actions">Экстренные действия:</strong><br>
+		<button id="btnSound" onclick="emergencySoundDetection(currentCountry, langCode)" data-i18n="check_sound">Проверить звук</button>
+		<button id="btnPolice" onclick="emergencyCall(currentCountry, 'полиция', langCode)" data-i18n="police">Полиция</button>
+		<button id="btnFire" onclick="emergencyCall(currentCountry, 'пожарная', langCode)" data-i18n="fire">Пожарная</button>
+		<button id="btnAmbulance" onclick="emergencyCall(currentCountry, 'скорая', langCode)" data-i18n="ambulance">Скорая</button>
+	</div>
 
-<script>
-let lang = 'ru';
-const apiKey = 'YOUR_OPENWEATHERMAP_API_KEY'; // Вставьте ваш API ключ
-const i18n = {
-    ru: { title:"Экстренные службы и напоминания", start:"Начать", status_not_started:"Не начато",
-          locating:"Определяем местоположение...", location_failed:"Не удалось определить местоположение.",
-          your_country: c=>`Ваша страна: ${c}`, weather_label:"Погода:", reminders_label:"Напоминания:",
-          now_weather_tts:(t,d)=>`Сейчас ${t} градусов, ${d}`, temp_weather_tts:(t,d)=>`Температура сейчас ${t} градусов, ${d}`,
-          lang_set: lc=>`Язык установлен: ${lc}`, country_set: c=>`Страна установлена: ${c}`, weather_text:(t,d)=>`Погода: ${t}°C, ${d}`
-    },
-    en: { title:"Emergency Services & Reminders", start:"Start", status_not_started:"Not started",
-          locating:"Locating...", location_failed:"Failed to get location.",
-          your_country: c=>`Your country: ${c}`, weather_label:"Weather:", reminders_label:"Reminders:",
-          now_weather_tts:(t,d)=>`Currently ${t} degrees, ${d}`, temp_weather_tts:(t,d)=>`Current temperature ${t} degrees, ${d}`,
-          lang_set: lc=>`Language set: ${lc}`, country_set: c=>`Country set: ${c}`, weather_text:(t,d)=>`Weather: ${t}°C, ${d}`
-    },
-    uk: { title:"Надзвичайні служби та нагадування", start:"Почати", status_not_started:"Не розпочато",
-          locating:"Визначення місцезнаходження...", location_failed:"Не вдалося визначити місцезнаходження.",
-          your_country: c=>`Ваша країна: ${c}`, weather_label:"Погода:", reminders_label:"Нагадування:",
-          now_weather_tts:(t,d)=>`Зараз ${t} градусів, ${d}`, temp_weather_tts:(t,d)=>`Температура зараз ${t} градусів, ${d}`,
-          lang_set: lc=>`Мову встановлено: ${lc}`, country_set: c=>`Країна встановлена: ${c}`, weather_text:(t,d)=>`Погода: ${t}°C, ${d}`
-    },
-    hu: { title:"Vészhelyzeti szolgáltatások és emlékeztetők", start:"Indítás", status_not_started:"Nem indult el",
-          locating:"Helymeghatározás...", location_failed:"Nem sikerült meghatározni a helyet.",
-          your_country: c=>`Országod: ${c}`, weather_label:"Időjárás:", reminders_label:"Emlékeztetők:",
-          now_weather_tts:(t,d)=>`Jelenleg ${t} fok, ${d}`, temp_weather_tts:(t,d)=>`Jelenlegi hőmérséklet ${t} fok, ${d}`,
-          lang_set: lc=>`Nyelv beállítva: ${lc}`, country_set: c=>`Ország beállítva: ${c}`, weather_text:(t,d)=>`Időjárás: ${t}°C, ${d}`
-    },
-    fr: { title:"Services d'urgence et rappels", start:"Démarrer", status_not_started:"Pas commencé",
-          locating:"Localisation...", location_failed:"Impossible d'obtenir la localisation.",
-          your_country: c=>`Votre pays: ${c}`, weather_label:"Météo:", reminders_label:"Rappels:",
-          now_weather_tts:(t,d)=>`Actuellement ${t} degrés, ${d}`, temp_weather_tts:(t,d)=>`Température actuelle ${t} degrés, ${d}`,
-          lang_set: lc=>`Langue définie: ${lc}`, country_set: c=>`Pays défini: ${c}`, weather_text:(t,d)=>`Météo: ${t}°C, ${d}`
-    }
-};
+	<div class="panel" id="voicePanel">
+		<strong data-i18n="voice_control">Голосовое управление</strong>
+		<span id="micState" class="badge off">микрофон: выкл</span>
+		<div class="status" id="voiceHints" data-i18n="voice_examples">Команда примеры: "начать", "язык ru", "погода", "полиция", "напомни в 15:30 позвонить маме"</div>
+		<button id="micToggle">Включить микрофон</button>
+		<span id="recognized">---</span>
+	</div>
 
-const startBtn = document.getElementById('startBtn');
-const statusSpan = document.getElementById('status');
-const countrySpan = document.getElementById('country');
-const weatherSpan = document.getElementById('weather');
-const langSelect = document.getElementById('langSelect');
+	<script>
+	// ----------------------
+	// Полный рабочий код
+	// ----------------------
+	let langCode = "ru";
+	let reminders = []; // {id, time: "HH:MM", task, lat, lon, spoken:false}
+	let currentCountry = "Неизвестно";
+	let lastLocation = null;
+	let weatherRefreshInterval = null;
+	let recognition = null;
+	let isListening = false;
 
-function speak(text) {
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = lang;
-    speechSynthesis.speak(utter);
-}
+	// ===== i18n =====
+	const i18n = {
+		ru: {
+			title: "Экстренные службы и напоминания",
+			choose_language: "Выберите язык (ru, en, uk, hu, fr): ",
+			start: "Начать",
+			status_label: "Статус:",
+			status_not_started: "Не начато",
+			locating: "Определяем местоположение...",
+			location_failed: "Не удалось определить местоположение.",
+			your_country: (c) => `Ваша страна: ${c}`,
+			weather_label: "Погода:",
+			reminders_label: "Напоминания:",
+			emergency_actions: "Экстренные действия:",
+			check_sound: "Проверить звук",
+			police: "Полиция",
+			fire: "Пожарная",
+			ambulance: "Скорая",
+			voice_control: "Голосовое управление",
+			voice_examples: "Команда примеры: \"начать\", \"язык ru\", \"погода\", \"полиция\", \"напомни в 15:30 позвонить маме\"",
+			mic_on: "микрофон: вкл",
+			mic_off: "микрофон: выкл",
+			mic_btn_on: "Выключить микрофон",
+			mic_btn_off: "Включить микрофон",
+			browser_no_stt: "Ваш браузер не поддерживает распознавание речи.",
+			say_start_first: "Сначала скажите 'начать' для определения местоположения.",
+			now_weather_tts: (t, d) => `Сейчас ${t} градусов, ${d}`,
+			temp_weather_tts: (t, d) => `Сейчас температура ${t} градусов, ${d}`,
+			reminder_set: (time, task) => `Напоминание установлено на ${time}: ${task}`,
+			reminder_fire: (task, t, d) => `Напоминаю: ${task}. Температура ${t}°C, погода: ${d}.`,
+			prompt_sound: "Какой звук вы услышали? (крик, стон, плач, вор, пожар или 'нет')",
+			prompt_help: "Вы чувствуете боль или нужна помощь? (да/нет)",
+			advise_doctor: "Рекомендую обратиться к врачу.",
+			be_careful: "Будьте осторожны.",
+			call_police_tts: (num) => `Звоню в полицию: ${num}`,
+			call_fire_tts: (num) => `Звоню в пожарную службу: ${num}`,
+			call_ambulance_tts: (num) => `Звоню в скорую: ${num}`,
+			sound_not_recognized: "Звук не распознан или нет опасности.",
+			call_service_unavailable: (s) => `Служба ${s} недоступна в вашей стране`,
+			lang_set: (lc) => `Язык установлен: ${lc}`,
+			weather_text: (t, d) => `Погода: ${t}°C, ${d}`,
+			recognized_prefix: "Распознано:",
+			country_set: (c) => `Страна установлена: ${c}`,
+		},
+		en: {
+			title: "Emergency services and reminders",
+			choose_language: "Choose language (ru, en, uk, hu, fr): ",
+			start: "Start",
+			status_label: "Status:",
+			status_not_started: "Not started",
+			locating: "Detecting location...",
+			location_failed: "Failed to determine location.",
+			your_country: (c) => `Your country: ${c}`,
+			weather_label: "Weather:",
+			reminders_label: "Reminders:",
+			emergency_actions: "Emergency actions:",
+			check_sound: "Check sound",
+			police: "Police",
+			fire: "Fire",
+			ambulance: "Ambulance",
+			voice_control: "Voice control",
+			voice_examples: "Example commands: \"start\", \"language en\", \"weather\", \"police\", \"remind at 15:30 call mom\"",
+			mic_on: "microphone: on",
+			mic_off: "microphone: off",
+			mic_btn_on: "Turn off mic",
+			mic_btn_off: "Turn on mic",
+			browser_no_stt: "Your browser does not support speech recognition.",
+			say_start_first: "Say 'start' first to determine location.",
+			now_weather_tts: (t, d) => `It is now ${t} degrees, ${d}`,
+			temp_weather_tts: (t, d) => `Current temperature ${t} degrees, ${d}`,
+			reminder_set: (time, task) => `Reminder set at ${time}: ${task}`,
+			reminder_fire: (task, t, d) => `Reminder: ${task}. Temperature ${t}°C, weather: ${d}.`,
+			prompt_sound: "What sound did you hear? (scream, groan, cry, thief, fire or 'no')",
+			prompt_help: "Are you in pain or need help? (yes/no)",
+			advise_doctor: "I recommend seeing a doctor.",
+			be_careful: "Be careful.",
+			call_police_tts: (num) => `Calling police: ${num}`,
+			call_fire_tts: (num) => `Calling fire service: ${num}`,
+			call_ambulance_tts: (num) => `Calling ambulance: ${num}`,
+			sound_not_recognized: "Sound not recognized or no danger.",
+			call_service_unavailable: (s) => `Service ${s} is unavailable in your country`,
+			lang_set: (lc) => `Language set: ${lc}`,
+			weather_text: (t, d) => `Weather: ${t}°C, ${d}`,
+			recognized_prefix: "Recognized:",
+			country_set: (c) => `Country set: ${c}`,
+		},
+		uk: {
+			title: "Екстрені служби та нагадування",
+			choose_language: "Оберіть мову (ru, en, uk, hu, fr): ",
+			start: "Почати",
+			status_label: "Статус:",
+			status_not_started: "Не розпочато",
+			locating: "Визначаємо місцезнаходження...",
+			location_failed: "Не вдалося визначити місцезнаходження.",
+			your_country: (c) => `Ваша країна: ${c}`,
+			weather_label: "Погода:",
+			reminders_label: "Нагадування:",
+			emergency_actions: "Екстрені дії:",
+			check_sound: "Перевірити звук",
+			police: "Поліція",
+			fire: "Пожежна",
+			ambulance: "Швидка",
+			voice_control: "Голосове керування",
+			voice_examples: "Приклади команд: \"почати\", \"мова uk\", \"погода\", \"поліція\", \"нагадай о 15:30 зателефонувати мамі\"",
+			mic_on: "мікрофон: увімк",
+			mic_off: "мікрофон: вимк",
+			mic_btn_on: "Вимкнути мікрофон",
+			mic_btn_off: "Увімкнути мікрофон",
+			browser_no_stt: "Ваш браузер не підтримує розпізнавання мовлення.",
+			say_start_first: "Спочатку скажіть 'почати' для визначення місцезнаходження.",
+			now_weather_tts: (t, d) => `Зараз ${t} градусів, ${d}`,
+			temp_weather_tts: (t, d) => `Зараз температура ${t} градусів, ${d}`,
+			reminder_set: (time, task) => `Нагадування встановлено на ${time}: ${task}`,
+			reminder_fire: (task, t, d) => `Нагадую: ${task}. Температура ${t}°C, погода: ${d}.`,
+			prompt_sound: "Який звук ви почули? (крик, стогін, плач, злодій, пожежа або 'ні')",
+			prompt_help: "Вам боляче або потрібна допомога? (так/ні)",
+			advise_doctor: "Рекомендую звернутися до лікаря.",
+			be_careful: "Будьте обережні.",
+			call_police_tts: (num) => `Телефоную до поліції: ${num}`,
+			call_fire_tts: (num) => `Телефоную до пожежної служби: ${num}`,
+			call_ambulance_tts: (num) => `Телефоную до швидкої: ${num}`,
+			sound_not_recognized: "Звук не розпізнано або небезпеки немає.",
+			call_service_unavailable: (s) => `Служба ${s} недоступна у вашій країні`,
+			lang_set: (lc) => `Мову встановлено: ${lc}`,
+			weather_text: (t, d) => `Погода: ${t}°C, ${d}`,
+			recognized_prefix: "Розпізнано:",
+			country_set: (c) => `Країну встановлено: ${c}`,
+		},
+		hu: {
+			title: "Segélyhívás és emlékeztetők",
+			choose_language: "Válassz nyelvet (ru, en, uk, hu, fr): ",
+			start: "Indítás",
+			status_label: "Állapot:",
+			status_not_started: "Nincs elindítva",
+			locating: "Helyzet meghatározása...",
+			location_failed: "Nem sikerült meghatározni a helyzetet.",
+			your_country: (c) => `Országod: ${c}`,
+			weather_label: "Időjárás:",
+			reminders_label: "Emlékeztetők:",
+			emergency_actions: "Vészhelyzeti műveletek:",
+			check_sound: "Hang ellenőrzése",
+			police: "Rendőrség",
+			fire: "Tűzoltóság",
+			ambulance: "Mentő",
+			voice_control: "Hangvezérlés",
+			voice_examples: "Példa parancsok: \"indítás\", \"nyelv hu\", \"időjárás\", \"rendőrség\", \"emlékeztess 15:30-kor, hogy felhívjam anyut\"",
+			mic_on: "mikrofon: be",
+			mic_off: "mikrofon: ki",
+			mic_btn_on: "Mikrofon kikapcsolása",
+			mic_btn_off: "Mikrofon bekapcsolása",
+			browser_no_stt: "A böngésződ nem támogatja a beszédfelismerést.",
+			say_start_first: "Mondd először, hogy 'indítás' a helyzet meghatározásához.",
+			now_weather_tts: (t, d) => `Most ${t} fok van, ${d}`,
+			temp_weather_tts: (t, d) => `Jelenlegi hőmérséklet ${t} fok, ${d}`,
+			reminder_set: (time, task) => `Emlékeztető beállítva ${time}-ra/-re: ${task}`,
+			reminder_fire: (task, t, d) => `Emlékeztető: ${task}. Hőmérséklet ${t}°C, időjárás: ${d}.`,
+			prompt_sound: "Milyen hangot hallottál? (sikoly, nyögés, sírás, tolvaj, tűz vagy 'nem')",
+			prompt_help: "Fájdalmat érzel vagy segítségre van szükséged? (igen/nem)",
+			advise_doctor: "Javaslom, fordulj orvoshoz.",
+			be_careful: "Légy óvatos.",
+			call_police_tts: (num) => `Hívom a rendőrséget: ${num}`,
+			call_fire_tts: (num) => `Hívom a tűzoltóságot: ${num}`,
+			call_ambulance_tts: (num) => `Hívom a mentőket: ${num}`,
+			sound_not_recognized: "A hang nem felismerhető vagy nincs veszély.",
+			call_service_unavailable: (s) => `A(z) ${s} szolgáltatás nem érhető el az országodban`,
+			lang_set: (lc) => `Nyelv beállítva: ${lc}`,
+			weather_text: (t, d) => `Időjárás: ${t}°C, ${d}`,
+			recognized_prefix: "Felismerve:",
+			country_set: (c) => `Ország beállítva: ${c}`,
+		},
+		fr: {
+			title: "Services d'urgence et rappels",
+			choose_language: "Choisissez la langue (ru, en, uk, hu, fr): ",
+			start: "Démarrer",
+			status_label: "Statut:",
+			status_not_started: "Non démarré",
+			locating: "Détection de la position...",
+			location_failed: "Impossible de déterminer la position.",
+			your_country: (c) => `Votre pays: ${c}`,
+			weather_label: "Météo:",
+			reminders_label: "Rappels:",
+			emergency_actions: "Actions d'urgence:",
+			check_sound: "Vérifier le son",
+			police: "Police",
+			fire: "Pompiers",
+			ambulance: "Ambulance",
+			voice_control: "Commande vocale",
+			voice_examples: "Exemples: \"démarrer\", \"langue fr\", \"météo\", \"police\", \"rappelle à 15:30 d'appeler maman\"",
+			mic_on: "micro: activé",
+			mic_off: "micro: désactivé",
+			mic_btn_on: "Désactiver le micro",
+			mic_btn_off: "Activer le micro",
+			browser_no_stt: "Votre navigateur ne prend pas en charge la reconnaissance vocale.",
+			say_start_first: "Dites d'abord 'démarrer' pour déterminer la position.",
+			now_weather_tts: (t, d) => `Il fait ${t} degrés, ${d}`,
+			temp_weather_tts: (t, d) => `Température actuelle ${t} degrés, ${d}`,
+			reminder_set: (time, task) => `Rappel réglé à ${time} : ${task}`,
+			reminder_fire: (task, t, d) => `Rappel: ${task}. Température ${t}°C, météo: ${d}.`,
+			prompt_sound: "Quel son avez-vous entendu ? (cri, gémissement, pleur, voleur, feu ou 'non')",
+			prompt_help: "Avez-vous mal ou besoin d'aide ? (oui/non)",
+			advise_doctor: "Je recommande de consulter un médecin.",
+			be_careful: "Soyez prudent.",
+			call_police_tts: (num) => `J'appelle la police : ${num}`,
+			call_fire_tts: (num) => `J'appelle les pompiers : ${num}`,
+			call_ambulance_tts: (num) => `J'appelle une ambulance : ${num}`,
+			sound_not_recognized: "Son non reconnu ou aucun danger.",
+			call_service_unavailable: (s) => `Le service ${s} n'est pas disponible dans votre pays`,
+			lang_set: (lc) => `Langue définie : ${lc}`,
+			weather_text: (t, d) => `Météo : ${t}°C, ${d}`,
+			recognized_prefix: "Reconnu :",
+			country_set: (c) => `Pays défini : ${c}`,
+		}
+	};
 
-function setLanguage(l) {
-    lang = l;
-    document.getElementById('title').innerText = i18n[lang].title;
-    startBtn.innerText = i18n[lang].start;
-    statusSpan.innerText = i18n[lang].status_not_started;
-    countrySpan.innerText = i18n[lang].your_country("...");
-    weatherSpan.innerText = i18n[lang].weather_text("-", "-");
-    speak(i18n[lang].lang_set(lang));
-}
+	// ===== Паттерны команд (упрощенные, используем выбранный язык) =====
+	const commandPatterns = {
+		ru: {
+			stopKeywords: ["стоп", "остановить", "выключить микрофон"],
+			startKeywords: ["начать", "старт"],
+			weatherKeywords: ["погода"],
+			langRegex: /\bязык\s+(ru|en|uk|hu|fr)\b/,
+			countryRegex: /\bстрана\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/,
+			services: [
+				{ keywords: ["полици"], service: "полиция" },
+				{ keywords: ["пожарн"], service: "пожарная" },
+				{ keywords: ["скора"], service: "скорая" }
+			],
+			reminderRegex: /\bнапомни\s+(?:в|на)\s+(\d{1,2}[:\.]\d{2})\s+(.+)/
+		},
+		en: {
+			stopKeywords: ["stop", "turn off mic", "microphone off"],
+			startKeywords: ["start", "begin"],
+			weatherKeywords: ["weather"],
+			langRegex: /\blanguage\s+(ru|en|uk|hu|fr)\b/,
+			countryRegex: /\bcountry\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/,
+			services: [
+				{ keywords: ["police"], service: "полиция" },
+				{ keywords: ["fire", "firefighters"], service: "пожарная" },
+				{ keywords: ["ambulance", "paramedic"], service: "скорая" }
+			],
+			reminderRegex: /\bremind\s+(?:at|for)\s+(\d{1,2}[:\.]\d{2})\s+(.+)/
+		},
+		uk: {
+			stopKeywords: ["стоп", "зупини", "вимкни мікрофон"],
+			startKeywords: ["почати", "старт"],
+			weatherKeywords: ["погода"],
+			langRegex: /\bмова\s+(ru|en|uk|hu|fr)\b/,
+			countryRegex: /\bкраїна\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/,
+			services: [
+				{ keywords: ["поліці"], service: "полиция" },
+				{ keywords: ["пожеж"], service: "пожарная" },
+				{ keywords: ["швидк"], service: "скорая" }
+			],
+			reminderRegex: /\bнагадай\s+(?:о|на)\s+(\d{1,2}[:\.]\d{2})\s+(.+)/
+		},
+		hu: {
+			stopKeywords: ["állj", "állítsd le", "kapcsold ki a mikrofont"],
+			startKeywords: ["indítás", "indul"],
+			weatherKeywords: ["időjárás"],
+			langRegex: /\bnyelv\s+(ru|en|uk|hu|fr)\b/,
+			countryRegex: /\bország\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/,
+			services: [
+				{ keywords: ["rendőrs"], service: "полиция" },
+				{ keywords: ["tűzolt"], service: "пожарная" },
+				{ keywords: ["mentő"], service: "скорая" }
+			],
+			reminderRegex: /\bemlékeztess\s+(\d{1,2}[:\.]\d{2})(?:-kor)?\s+(.+)/
+		},
+		fr: {
+			stopKeywords: ["arrête", "arrêter", "désactiver le micro", "arrête micro"],
+			startKeywords: ["démarrer", "commencer"],
+			weatherKeywords: ["météo"],
+			langRegex: /\blangue\s+(ru|en|uk|hu|fr)\b/,
+			countryRegex: /\bpays\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/,
+			services: [
+				{ keywords: ["police"], service: "полиция" },
+				{ keywords: ["pompier", "pompiers", "feu"], service: "пожарная" },
+				{ keywords: ["ambulance"], service: "скорая" }
+			],
+			reminderRegex: /\brappelle\s+à\s+(\d{1,2}[:\.]\d{2})\s+(.+)/
+		}
+	};
 
-langSelect.addEventListener('change', ()=>setLanguage(langSelect.value));
-setLanguage(lang);
+	// ===== Звуковые ключевые слова =====
+	const soundKeywords = {
+		ru: { harm: ["крик", "стон", "плач"], thief: "вор", fire: "пожар", yes: "да", no: "нет" },
+		en: { harm: ["scream", "groan", "cry"], thief: "thief", fire: "fire", yes: "yes", no: "no" },
+		uk: { harm: ["крик", "стогін", "плач"], thief: "злодій", fire: "пожежа", yes: "так", no: "ні" },
+		hu: { harm: ["sikoly", "nyögés", "sírás"], thief: "tolvaj", fire: "tűz", yes: "igen", no: "nem" },
+		fr: { harm: ["cri", "gémissement", "pleur"], thief: "voleur", fire: "feu", yes: "oui", no: "non" }
+	};
 
-async function fetchWeather(lat, lon) {
-    try {
-        const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&lang=${lang}&appid=${apiKey}`);
-        const data = await res.json();
-        const desc = data.weather[0].description;
-        const temp = data.main.temp;
-        weatherSpan.innerText = i18n[lang].weather_text(temp, desc);
-        speak(i18n[lang].now_weather_tts(temp, desc));
-    } catch (err) {
-        weatherSpan.innerText = i18n[lang].location_failed;
-    }
-}
+	// ===== Хелперы i18n и язык =====
+	function tt(key, ...args) {
+		const val = (i18n[langCode] || i18n.ru)[key];
+		return typeof val === 'function' ? val(...args) : val;
+	}
 
-async function detectCountry(lat, lon) {
-    try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
-        const data = await res.json();
-        const country = data.address.country || "Unknown";
-        countrySpan.innerText = i18n[lang].your_country(country);
-        speak(i18n[lang].country_set(country));
-    } catch (err) {
-        countrySpan.innerText = i18n[lang].location_failed;
-    }
-}
+	function applyStaticTranslations() {
+		document.querySelectorAll('[data-i18n]').forEach(node => {
+			const key = node.getAttribute('data-i18n');
+			if (!key) return;
+			node.textContent = tt(key);
+		});
+		document.title = tt('title');
+		updateMicBadge(isListening);
+	}
 
-startBtn.addEventListener('click', ()=>{
-    statusSpan.innerText = i18n[lang].locating;
-    navigator.geolocation.getCurrentPosition(pos=>{
-        const {latitude, longitude} = pos.coords;
-        statusSpan.innerText = "OK";
-        detectCountry(latitude, longitude);
-        fetchWeather(latitude, longitude);
-    }, err=>{
-        statusSpan.innerText = i18n[lang].location_failed;
-    });
-});
-</script>
+	function setLanguage(nextLang) {
+		langCode = (nextLang || 'ru').toLowerCase();
+		document.documentElement.setAttribute('lang', langCode);
+		if (recognition) recognition.lang = mapLangToBCP47(langCode);
+		applyStaticTranslations();
+	}
+
+	function mapLangToBCP47(lang) {
+		switch ((lang || "ru").toLowerCase()) {
+			case "ru": return "ru-RU";
+			case "en": return "en-US";
+			case "uk": return "uk-UA";
+			case "hu": return "hu-HU";
+			case "fr": return "fr-FR";
+			default: return "ru-RU";
+		}
+	}
+
+	// ===== Словарь экстренных номеров и нормализация стран =====
+	const emergencyNumbers = {
+		"Россия": { "полиция": "+78001005050", "пожарная": "+101", "скорая": "+103", "спасатели": "+112" },
+		"США": { "полиция": "+911", "пожарная": "+911", "скорая": "+911", "спасатели": "+911" },
+		"Украина": { "полиция": "+102", "пожарная": "+101", "скорая": "+103", "спасатели": "+112" },
+		"Венгрия": { "полиция": "+112", "пожарная": "+105", "скорая": "+104", "спасатели": "+112" },
+		"Франция": { "полиция": "+17", "пожарная": "+18", "скорая": "+15", "спасатели": "+112" }
+	};
+
+	const countryAliases = {
+		"россия": "Россия", "рф": "Россия", "российская федерация": "Россия", "russia": "Россия",
+		"сша": "США", "usa": "США", "u.s.a": "США", "united states": "США", "united states of america": "США",
+		"украина": "Украина", "ukraine": "Украина",
+		"венгрия": "Венгрия", "hungary": "Венгрия",
+		"франция": "Франция", "france": "Франция"
+	};
+
+	function normalizeCountryName(name) {
+		if (!name) return "Неизвестно";
+		if (emergencyNumbers[name]) return name;
+		const key = String(name).toLowerCase().trim().replace(/\./g, "");
+		if (countryAliases[key]) return countryAliases[key];
+		const foundAlias = Object.keys(countryAliases).find(alias => key.includes(alias));
+		if (foundAlias) return countryAliases[foundAlias];
+		return name;
+	}
+
+	// ===== TTS =====
+	function speak(text, lang) {
+		try {
+			const utter = new SpeechSynthesisUtterance(text);
+			utter.lang = mapLangToBCP47(lang);
+			speechSynthesis.speak(utter);
+		} catch (e) {
+			console.log("TTS error:", e);
+		}
+	}
+
+	// ===== Геопозиция =====
+	async function getLocation() {
+		return new Promise((resolve) => {
+			if (navigator.geolocation) {
+				navigator.geolocation.getCurrentPosition(pos => {
+					resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+				}, err => {
+					console.warn("geolocation error", err);
+					resolve(null);
+				}, {timeout:10000});
+			} else resolve(null);
+		});
+	}
+
+	// ===== Погода через wttr.in (без ключа) =====
+	async function getWeather(lat, lon) {
+		try {
+			const url = `https://wttr.in/${lat},${lon}?format=j1`;
+			const res = await fetch(url);
+			const data = await res.json();
+			const current = data.current_condition && data.current_condition[0];
+			if (!current) return null;
+			return { temp: current.temp_C, desc: current.weatherDesc?.[0]?.value || "" };
+		} catch (e) {
+			console.log("Ошибка получения погоды:", e);
+			return null;
+		}
+	}
+
+	// ===== Геокодинг страны по координатам (nominatim) =====
+	async function getCountry(lat, lon) {
+		try {
+			const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+			const data = await res.json();
+			const raw = (data && data.address && data.address.country) ? data.address.country : "Неизвестно";
+			return normalizeCountryName(raw);
+		} catch (e) {
+			console.log("getCountry error", e);
+			return "Неизвестно";
+		}
+	}
+
+	// ===== Автообновление погоды =====
+	function startWeatherAutoRefresh(lat, lon) {
+		if (weatherRefreshInterval) {
+			clearInterval(weatherRefreshInterval);
+			weatherRefreshInterval = null;
+		}
+		weatherRefreshInterval = setInterval(async () => {
+			const weather = await getWeather(lat, lon);
+			if (weather) {
+				document.getElementById("weather").innerText = tt('weather_text', weather.temp, weather.desc);
+			}
+		}, 10 * 60 * 1000); // каждые 10 минут
+	}
+
+	// ===== Экстренные события =====
+	function emergencySoundDetection(country, lang) {
+		const dict = soundKeywords[langCode] || soundKeywords.ru;
+		const sound = prompt(tt('prompt_sound'))?.toLowerCase();
+
+		if (!sound) {
+			speak(tt('sound_not_recognized'), langCode);
+			return;
+		}
+
+		if (dict.harm.includes(sound)) {
+			const help = prompt(tt('prompt_help'))?.toLowerCase();
+			if (help === dict.yes) speak(tt('advise_doctor'), langCode);
+			else speak(tt('be_careful'), langCode);
+		} else if (sound === dict.thief) {
+			const normalizedCountry = normalizeCountryName(country);
+			speak(tt('call_police_tts', emergencyNumbers[normalizedCountry]?.["полиция"] || "n/a"), langCode);
+		} else if (sound === dict.fire) {
+			const normalizedCountry = normalizeCountryName(country);
+			speak(tt('call_fire_tts', emergencyNumbers[normalizedCountry]?.["пожарная"] || "n/a"), langCode);
+		} else {
+			speak(tt('sound_not_recognized'), langCode);
+		}
+	}
+
+	function emergencyCall(country, service, lang) {
+		const normalizedCountry = normalizeCountryName(country);
+		if (emergencyNumbers[normalizedCountry] && emergencyNumbers[normalizedCountry][service]) {
+			const num = emergencyNumbers[normalizedCountry][service];
+			if (service === 'полиция') speak(tt('call_police_tts', num), lang);
+			else if (service === 'пожарная') speak(tt('call_fire_tts', num), lang);
+			else if (service === 'скорая') speak(tt('call_ambulance_tts', num), lang);
+		} else {
+			speak(tt('call_service_unavailable', service), lang);
+		}
+	}
+
+	// ===== Напоминания: добавление, отображение, удаление, триггер =====
+	function addReminder() {
+		const timeInput = document.getElementById("reminderTime");
+		const textInput = document.getElementById("reminderText");
+		const time = timeInput.value;
+		const task = textInput.value.trim();
+		if (!time || !task) return alert("Введите время и текст напоминания");
+		if (!lastLocation) return alert(tt('say_start_first'));
+
+		const id = Date.now() + Math.random();
+		const reminder = { id, time, task, lat: lastLocation.lat, lon: lastLocation.lon, spoken: false };
+		reminders.push(reminder);
+		displayReminders();
+		scheduleReminderCheck(reminder);
+		timeInput.value = "";
+		textInput.value = "";
+		alert(tt('reminder_set', time, task));
+	}
+
+	function displayReminders() {
+		const container = document.getElementById("reminderList");
+		if (!reminders.length) {
+			container.innerHTML = '<span class="small">---</span>';
+			return;
+		}
+		container.innerHTML = "";
+		reminders.forEach(r => {
+			const div = document.createElement('div');
+			div.className = 'reminder-item';
+			const left = document.createElement('div');
+			left.innerHTML = `<strong>${r.time}</strong> <span class="reminder-text">${r.task}</span>`;
+			const right = document.createElement('div');
+			const delBtn = document.createElement('button');
+			delBtn.textContent = 'Удалить';
+			delBtn.onclick = () => {
+				reminders = reminders.filter(x => x.id !== r.id);
+				displayReminders();
+			};
+			right.appendChild(delBtn);
+			div.appendChild(left);
+			div.appendChild(right);
+			container.appendChild(div);
+		});
+	}
+
+	function scheduleReminderCheck(reminder) {
+		// Запускаем периодическую проверку для данного напоминания (каждые 20 секунд)
+		const timer = setInterval(async () => {
+			const now = new Date();
+			const hh = String(now.getHours()).padStart(2, '0');
+			const mm = String(now.getMinutes()).padStart(2, '0');
+			if (`${hh}:${mm}` === reminder.time && !reminder.spoken) {
+				reminder.spoken = true;
+				// узнаем погоду на момент срабатывания
+				const weather = await getWeather(reminder.lat, reminder.lon);
+				let msg = tt('reminder_set', reminder.time, reminder.task);
+				if (weather) msg = tt('reminder_fire', reminder.task, weather.temp, weather.desc);
+				speak(msg, langCode);
+				// пометим в UI (заменяем текст этого напоминания на сообщение)
+				reminders = reminders.filter(r => r.id !== reminder.id); // удаляем после срабатывания
+				displayReminders();
+				clearInterval(timer);
+			}
+		}, 20 * 1000);
+	}
+
+	// ===== STT (SpeechRecognition) =====
+	const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+	function ensureRecognition() {
+		if (!SpeechRecognition) return null;
+		if (recognition) return recognition;
+		recognition = new SpeechRecognition();
+		recognition.continuous = true;
+		recognition.interimResults = false;
+		recognition.lang = mapLangToBCP47(langCode);
+		recognition.onresult = (event) => {
+			const last = event.results[event.results.length - 1];
+			if (!last) return;
+			const text = (last[0]?.transcript || "").trim();
+			if (!text) return;
+			document.getElementById("recognized").innerText = `${tt('recognized_prefix')} ${text}`;
+			handleVoiceCommand(text);
+		};
+		recognition.onstart = () => updateMicBadge(true);
+		recognition.onend = () => updateMicBadge(false);
+		recognition.onerror = () => updateMicBadge(false);
+		return recognition;
+	}
+
+	function updateMicBadge(on) {
+		isListening = !!on;
+		const badge = document.getElementById("micState");
+		const btn = document.getElementById("micToggle");
+		if (!badge || !btn) return;
+		badge.classList.remove("on", "off");
+		badge.classList.add(on ? "on" : "off");
+		badge.textContent = on ? tt('mic_on') : tt('mic_off');
+		btn.textContent = on ? tt('mic_btn_on') : tt('mic_btn_off');
+	}
+
+	function startListening() {
+		const rec = ensureRecognition();
+		if (!rec) {
+			document.getElementById("recognized").innerText = tt('browser_no_stt');
+			return;
+		}
+		try {
+			rec.lang = mapLangToBCP47(langCode);
+			rec.start();
+		} catch (e) {
+			// возможно уже запущен
+		}
+	}
+
+	function stopListening() {
+		if (!recognition) return;
+		try { recognition.stop(); } catch (e) {}
+	}
+
+	document.getElementById("micToggle").addEventListener("click", () => {
+		if (isListening) stopListening(); else startListening();
+	});
+
+	function handleVoiceCommand(originalText) {
+		const text = originalText.toLowerCase();
+		const patterns = commandPatterns[langCode] || commandPatterns.ru;
+
+		if (patterns.stopKeywords.some(k => text.includes(k))) {
+			stopListening();
+			return;
+		}
+
+		if (patterns.startKeywords.some(k => text.includes(k))) {
+			startApp();
+			return;
+		}
+
+		const langMatch = text.match(patterns.langRegex);
+		if (langMatch) {
+			setLanguage(langMatch[1]);
+			document.getElementById("langInput").value = langCode;
+			speak(tt('lang_set', langCode), langCode);
+			return;
+		}
+
+		if (patterns.weatherKeywords.some(k => text.includes(k))) {
+			if (lastLocation) {
+				getWeather(lastLocation.lat, lastLocation.lon).then(w => {
+					if (w) {
+						document.getElementById("weather").innerText = tt('weather_text', w.temp, w.desc);
+						speak(tt('now_weather_tts', w.temp, w.desc), langCode);
+					}
+				});
+			} else {
+				speak(tt('say_start_first'), langCode);
+			}
+			return;
+		}
+
+		const countrySetMatch = text.match(patterns.countryRegex);
+		if (countrySetMatch) {
+			const candidate = countrySetMatch[1].trim();
+			const canon = normalizeCountryName(candidate);
+			currentCountry = canon;
+			document.getElementById("status").innerText = tt('your_country', currentCountry);
+			speak(tt('country_set', currentCountry), langCode);
+			return;
+		}
+
+		for (const svc of patterns.services) {
+			if (svc.keywords.some(k => text.includes(k))) {
+				emergencyCall(currentCountry, svc.service, langCode);
+				return;
+			}
+		}
+
+		const remindMatch = text.match(patterns.reminderRegex);
+		if (remindMatch) {
+			const rawTime = remindMatch[1].replace('.', ':');
+			const task = remindMatch[2].trim();
+			if (lastLocation) {
+				// добавим напоминание программно
+				const id = Date.now() + Math.random();
+				const reminder = { id, time: rawTime, task, lat: lastLocation.lat, lon: lastLocation.lon, spoken: false };
+				reminders.push(reminder);
+				displayReminders();
+				scheduleReminderCheck(reminder);
+				document.getElementById("reminderText").value = "";
+				document.getElementById("reminderTime").value = "";
+				document.getElementById("reminder").innerText = tt('reminder_set', rawTime, task);
+				speak(tt('reminder_set', rawTime, task), langCode);
+			} else {
+				speak(tt('say_start_first'), langCode);
+			}
+			return;
+		}
+	}
+
+	// ===== Основная функция startApp =====
+	async function startApp() {
+		langCode = (document.getElementById("langInput").value || "ru").toLowerCase();
+		setLanguage(langCode);
+
+		document.getElementById("status").innerText = tt('locating');
+
+		const loc = await getLocation();
+		if (!loc) {
+			speak(tt('location_failed'), langCode);
+			document.getElementById("status").innerText = tt('location_failed');
+			return;
+		}
+
+		lastLocation = loc;
+		currentCountry = await getCountry(loc.lat, loc.lon);
+		document.getElementById("status").innerText = tt('your_country', currentCountry);
+
+		const weather = await getWeather(loc.lat, loc.lon);
+		if (weather) {
+			document.getElementById("weather").innerText = tt('weather_text', weather.temp, weather.desc);
+			speak(tt('temp_weather_tts', weather.temp, weather.desc), langCode);
+		}
+
+		startWeatherAutoRefresh(loc.lat, loc.lon);
+	}
+
+	// Начальные действия
+	document.getElementById("langInput").addEventListener("input", (e) => setLanguage(e.target.value));
+	applyStaticTranslations();
+	displayReminders();
+
+	</script>
 </body>
 </html>
