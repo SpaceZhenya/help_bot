@@ -68,17 +68,15 @@
 
 <script>
 /*
-  Полный файл: index.html
-  - Перевод описания погоды (локальный словарь)
-  - Перевод названия страны, полученной по геолокации (Nominatim)
-  - Голосовой ввод (STT) и вывод (TTS)
-  - Напоминания с проверкой погоды при срабатывании
-  Поддерживаемые языки: ru, en, uk, hu, fr
+  Улучшение: при срабатывании напоминания программа получает погоду и дополнительно даёт рекомендацию по одежде:
+  - холодно -> можно надеть свитер/куртку
+  - тепло -> лёгкая одежда/кепка и т.п.
+  Переводы включены для ru/en/uk/hu/fr.
 */
 
 let langCode = "ru";
 let reminders = []; // {id, time, task, lat, lon, spoken}
-let currentCountry = "Неизвестно"; // canonical internal name for lookup
+let currentCountry = "Неизвестно";
 let lastLocation = null;
 let weatherRefreshInterval = null;
 let recognition = null;
@@ -127,7 +125,8 @@ const i18n = {
     weather_text: (t, d) => `Погода: ${t}°C, ${d}`,
     recognized_prefix: "Распознано:",
     country_set: (c) => `Страна установлена: ${c}`,
-    add_reminder: "Добавить"
+    add_reminder: "Добавить",
+    clothing_advice_label: "Совет по одежде:"
   },
   en: {
     title: "Emergency services and reminders",
@@ -170,7 +169,8 @@ const i18n = {
     weather_text: (t, d) => `Weather: ${t}°C, ${d}`,
     recognized_prefix: "Recognized:",
     country_set: (c) => `Country set: ${c}`,
-    add_reminder: "Add"
+    add_reminder: "Add",
+    clothing_advice_label: "Clothing advice:"
   },
   uk: {
     title: "Екстрені служби та нагадування",
@@ -213,7 +213,8 @@ const i18n = {
     weather_text: (t, d) => `Погода: ${t}°C, ${d}`,
     recognized_prefix: "Розпізнано:",
     country_set: (c) => `Країну встановлено: ${c}`,
-    add_reminder: "Додати"
+    add_reminder: "Додати",
+    clothing_advice_label: "Порада щодо одягу:"
   },
   hu: {
     title: "Segélyhívás és emlékeztetők",
@@ -256,7 +257,8 @@ const i18n = {
     weather_text: (t, d) => `Időjárás: ${t}°C, ${d}`,
     recognized_prefix: "Felismerve:",
     country_set: (c) => `Ország beállítva: ${c}`,
-    add_reminder: "Hozzáad"
+    add_reminder: "Hozzáad",
+    clothing_advice_label: "Öltözködési tanács:"
   },
   fr: {
     title: "Services d'urgence et rappels",
@@ -299,7 +301,8 @@ const i18n = {
     weather_text: (t, d) => `Météo : ${t}°C, ${d}`,
     recognized_prefix: "Reconnu :",
     country_set: (c) => `Pays défini : ${c}`,
-    add_reminder: "Ajouter"
+    add_reminder: "Ajouter",
+    clothing_advice_label: "Conseil vestimentaire :"
   }
 };
 
@@ -360,7 +363,6 @@ const countryAliases = {
 // Map common country codes from geocoder to canonical internal name
 const countryCodeToCanonical = {
   ru: "Россия",
-  ru: "Россия",
   us: "США",
   ua: "Украина",
   hu: "Венгрия",
@@ -420,7 +422,7 @@ function normalizeCountryName(rawName) {
     }
   }
 
-  // fallback to the raw name (useful if geocoder returns an unexpected full country name)
+  // fallback to the raw name
   return rn;
 }
 
@@ -429,7 +431,6 @@ function translateCountryName(canonicalName, targetLang) {
   if (COUNTRY_TRANSLATIONS[canonicalName]) {
     return COUNTRY_TRANSLATIONS[canonicalName][targetLang] || COUNTRY_TRANSLATIONS[canonicalName].en || canonicalName;
   }
-  // fallback: if canonicalName isn't in our translations, try alias mapping
   const lower = normalizeStringForCompare(canonicalName);
   if (countryAliases[lower]) {
     const canon = countryAliases[lower];
@@ -463,16 +464,71 @@ const WEATHER_TRANSLATIONS = {
 function translateWeatherDesc(rawDesc) {
   if (!rawDesc || typeof rawDesc !== "string") return rawDesc || "";
   const text = rawDesc.toLowerCase().trim();
-  // exact
   for (const key of Object.keys(WEATHER_TRANSLATIONS)) {
     if (text === key) return WEATHER_TRANSLATIONS[key][langCode] || WEATHER_TRANSLATIONS[key].en || rawDesc;
   }
-  // substring
   for (const key of Object.keys(WEATHER_TRANSLATIONS)) {
     if (text.includes(key)) return WEATHER_TRANSLATIONS[key][langCode] || WEATHER_TRANSLATIONS[key].en || rawDesc;
   }
-  // fallback
   return rawDesc;
+}
+
+/* ---------- Clothing advice (new) ---------- */
+/*
+  Thresholds are Celsius:
+   - <= 5      -> very cold
+   - 6..15     -> cold (sweater/jacket)
+   - 16..22    -> cool/light jacket
+   - 23..30    -> warm (t-shirt, cap)
+   - >=31      -> hot (cap, sun protection)
+*/
+const CLOTHING_ADVICE = {
+  ru: {
+    very_cold: "Очень холодно — наденьте тёплую куртку, шарф и перчатки.",
+    cold: "Холодно — можно надеть свитер или лёгкую куртку.",
+    cool: "Прохладно — возьмите ветровку или лёгкую куртку.",
+    warm: "Тёпло — можно надеть футболку, возможно кепку.",
+    hot: "Жарко — наденьте лёгкую одежду и кепку, пейте больше воды."
+  },
+  en: {
+    very_cold: "Very cold — wear a warm coat, scarf and gloves.",
+    cold: "Cold — you can wear a sweater or light jacket.",
+    cool: "Cool — take a light jacket or windbreaker.",
+    warm: "Warm — a t-shirt is fine, consider wearing a cap.",
+    hot: "Hot — wear light clothing and a cap, stay hydrated."
+  },
+  uk: {
+    very_cold: "Дуже холодно — надягніть теплу куртку, шарф і рукавички.",
+    cold: "Холодно — можна надіти светр або легку куртку.",
+    cool: "Прохолодно — візьміть вітровку або легку куртку.",
+    warm: "Тепло — можна надіти футболку, можливо кепку.",
+    hot: "Спекотно — носіть легкий одяг і кепку, пийте більше води."
+  },
+  hu: {
+    very_cold: "Nagyon hideg — viselj meleg kabátot, sálat és kesztyűt.",
+    cold: "Hideg — viselj pulóvert vagy könnyű dzsekit.",
+    cool: "Hűvös — vigyél magaddal egy könnyű dzsekit vagy szélkabátot.",
+    warm: "Meleg — póló elég, érdemes sapkát vinni.",
+    hot: "Forró — viselj könnyű ruhát és sapkát, igyál sok vizet."
+  },
+  fr: {
+    very_cold: "Très froid — mettez un manteau chaud, une écharpe et des gants.",
+    cold: "Froid — vous pouvez mettre un pull ou une veste légère.",
+    cool: "Frais — prenez une veste légère ou un coupe-vent.",
+    warm: "Chaud — un t-shirt suffit, pensez à une casquette.",
+    hot: "Très chaud — portez des vêtements légers et une casquette, hydratez-vous."
+  }
+};
+
+function getClothingAdvice(tempC) {
+  const t = Number(tempC);
+  const dict = CLOTHING_ADVICE[langCode] || CLOTHING_ADVICE.ru;
+  if (isNaN(t)) return "";
+  if (t <= 5) return dict.very_cold;
+  if (t <= 15) return dict.cold;
+  if (t <= 22) return dict.cool;
+  if (t <= 30) return dict.warm;
+  return dict.hot;
 }
 
 /* ---------- TTS ---------- */
@@ -522,7 +578,6 @@ async function getCountry(lat, lon) {
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
     const data = await res.json();
-    // prefer country field; if not present try country_code
     const rawCountry = (data && data.address && (data.address.country || data.address.country_code)) ? (data.address.country || data.address.country_code) : "Неизвестно";
     return normalizeCountryName(rawCountry);
   } catch (e) {
@@ -611,7 +666,7 @@ function displayReminders() {
     left.innerHTML = `<strong>${r.time}</strong> <span class="reminder-text">${r.task}</span>`;
     const right = document.createElement('div');
     const delBtn = document.createElement('button');
-    delBtn.textContent = (i18n[langCode] && i18n[langCode].add_reminder) ? "Удалить" : "Удалить"; // delete label kept simple
+    delBtn.textContent = (i18n[langCode] && i18n[langCode].add_reminder) ? "Удалить" : "Удалить";
     delBtn.onclick = () => { reminders = reminders.filter(x => x.id !== r.id); displayReminders(); };
     right.appendChild(delBtn);
     div.appendChild(left);
@@ -620,6 +675,7 @@ function displayReminders() {
   });
 }
 
+/* scheduleReminderCheck - improved: when reminder triggers, fetch weather and give clothing advice */
 function scheduleReminderCheck(reminder) {
   const timer = setInterval(async () => {
     const now = new Date();
@@ -628,9 +684,23 @@ function scheduleReminderCheck(reminder) {
     if (`${hh}:${mm}` === reminder.time && !reminder.spoken) {
       reminder.spoken = true;
       const weather = await getWeather(reminder.lat, reminder.lon);
-      let msg = tt('reminder_set', reminder.time, reminder.task);
-      if (weather) msg = tt('reminder_fire', reminder.task, weather.temp, weather.desc);
-      speak(msg, langCode);
+      let msgBase = tt('reminder_set', reminder.time, reminder.task); // fallback base
+      let spokenMsg = msgBase;
+      if (weather) {
+        const temp = weather.temp;
+        const desc = weather.desc;
+        // base reminder with weather
+        spokenMsg = tt('reminder_fire', reminder.task, temp, desc);
+        // add clothing advice
+        const advice = getClothingAdvice(temp);
+        if (advice) {
+          // Combine and also include a short label if available
+          const label = tt('clothing_advice_label') || '';
+          spokenMsg = `${spokenMsg} ${label} ${advice}`;
+        }
+      }
+      // speak and remove reminder
+      speak(spokenMsg, langCode);
       reminders = reminders.filter(r => r.id !== reminder.id);
       displayReminders();
       clearInterval(timer);
