@@ -454,27 +454,17 @@
 	}
 
 	// ===== Погода через wttr.in (без ключа) =====
-    async function getWeather(lat, lon) {
-       try {
-      const r = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`
-    );
-    const data = await r.json();
-    const temp = data.current_weather.temperature;
-    const code = data.current_weather.weathercode;
-
-    // Берём перевод из словаря weatherCodes, если он есть
-    const condition = weatherCodes[code] && weatherCodes[code][langCode]
-      ? weatherCodes[code][langCode]
-      : weatherCodes[code]["en"]; // fallback
-
-    document.getElementById("weather").innerText =
-      tt('weather_text', temp, condition);
-  } catch (e) {
-    document.getElementById("weather").innerText = "---";
-  }
-}
-
+	async function getWeather(lat, lon) {
+		try {
+			const url = `https://wttr.in/${lat},${lon}?format=j1`;
+			const res = await fetch(url);
+			const data = await res.json();
+			const current = data.current_condition && data.current_condition[0];
+			if (!current) return null;
+			return { temp: current.temp_C, desc: current.weatherDesc?.[0]?.value || "" };
+		} catch (e) {
+			console.log("Ошибка получения погоды:", e);
+			return null;
 		}
 	}
 
