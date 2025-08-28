@@ -65,7 +65,7 @@
 
 	<script>
 	// ----------------------
-	// Полный рабочий код
+	// Полный рабочий код (с исправлением: перевод описания погоды)
 	// ----------------------
 	let langCode = "ru";
 	let reminders = []; // {id, time: "HH:MM", task, lat, lon, spoken:false}
@@ -428,6 +428,48 @@
 		return name;
 	}
 
+	// ===== Перевод описания погоды (локальный словарь) =====
+	const WEATHER_TRANSLATIONS = {
+		// keys are lower-case english-ish fragments that commonly appear in wttr.in descriptions
+		"clear": { ru: "ясно", uk: "ясно", hu: "derűs", fr: "dégagé", en: "clear" },
+		"sunny": { ru: "солнечно", uk: "сонячно", hu: "napos", fr: "ensoleillé", en: "sunny" },
+		"partly cloudy": { ru: "малооблачно", uk: "малохмарно", hu: "részben felhős", fr: "partiellement nuageux", en: "partly cloudy" },
+		"cloudy": { ru: "облачно", uk: "хмарно", hu: "felhős", fr: "nuageux", en: "cloudy" },
+		"overcast": { ru: "пасмурно", uk: "пасмурно", hu: "borult", fr: "couvert", en: "overcast" },
+		"patchy rain": { ru: "местами дождь", uk: "місцями дощ", hu: "helyenként eső", fr: "pluie par endroits", en: "patchy rain" },
+		"light rain": { ru: "небольшой дождь", uk: "невеликий дощ", hu: "gyenge eső", fr: "pluie légère", en: "light rain" },
+		"moderate rain": { ru: "умеренный дождь", uk: "помірний дощ", hu: "mérsékelt eső", fr: "pluie modérée", en: "moderate rain" },
+		"heavy rain": { ru: "сильный дождь", uk: "сильний дощ", hu: "erős eső", fr: "forte pluie", en: "heavy rain" },
+		"shower": { ru: "ливень", uk: "злива", hu: "zápor", fr: "averses", en: "shower" },
+		"thunder": { ru: "гроза", uk: "гроза", hu: "vihar", fr: "orage", en: "thunderstorm" },
+		"thunderstorm": { ru: "гроза", uk: "гроза", hu: "vihar", fr: "orage", en: "thunderstorm" },
+		"snow": { ru: "снег", uk: "сніг", hu: "hó", fr: "neige", en: "snow" },
+		"sleet": { ru: "дождь со снегом", uk: "дощ зі снігом", hu: "hófagy", fr: "neige fondue", en: "sleet" },
+		"mist": { ru: "туман", uk: "туман", hu: "köd", fr: "brume", en: "mist" },
+		"fog": { ru: "туман", uk: "туман", hu: "köd", fr: "brouillard", en: "fog" },
+		"haze": { ru: "мгла", uk: "мгла", hu: "hőköd", fr: "brume", en: "haze" },
+		"freezing": { ru: "ледяной", uk: "крижаний", hu: "fagyasztó", fr: "gelé", en: "freezing" }
+	};
+
+	function translateWeatherDesc(rawDesc) {
+		if (!rawDesc || typeof rawDesc !== "string") return rawDesc || "";
+		const text = rawDesc.toLowerCase().trim();
+		// Try exact match
+		for (const key of Object.keys(WEATHER_TRANSLATIONS)) {
+			if (text === key) {
+				return WEATHER_TRANSLATIONS[key][langCode] || WEATHER_TRANSLATIONS[key].en || rawDesc;
+			}
+		}
+		// Try substring matching - helps with "partly cloudy later" etc.
+		for (const key of Object.keys(WEATHER_TRANSLATIONS)) {
+			if (text.includes(key)) {
+				return WEATHER_TRANSLATIONS[key][langCode] || WEATHER_TRANSLATIONS[key].en || rawDesc;
+			}
+		}
+		// If we didn't find a translation, return original (keep capitalization)
+		return rawDesc;
+	}
+
 	// ===== TTS =====
 	function speak(text, lang) {
 		try {
@@ -461,7 +503,9 @@
 			const data = await res.json();
 			const current = data.current_condition && data.current_condition[0];
 			if (!current) return null;
-			return { temp: current.temp_C, desc: current.weatherDesc?.[0]?.value || "" };
+			const raw = current.weatherDesc?.[0]?.value || "";
+			const translated = translateWeatherDesc(raw);
+			return { temp: current.temp_C, desc: translated, rawDesc: raw };
 		} catch (e) {
 			console.log("Ошибка получения погоды:", e);
 			return null;
@@ -590,8 +634,8 @@
 				let msg = tt('reminder_set', reminder.time, reminder.task);
 				if (weather) msg = tt('reminder_fire', reminder.task, weather.temp, weather.desc);
 				speak(msg, langCode);
-				// пометим в UI (заменяем текст этого напоминания на сообщение)
-				reminders = reminders.filter(r => r.id !== reminder.id); // удаляем после срабатывания
+				// пометим в UI (удаляем напоминание после срабатывания)
+				reminders = reminders.filter(r => r.id !== reminder.id);
 				displayReminders();
 				clearInterval(timer);
 			}
@@ -721,7 +765,7 @@
 				scheduleReminderCheck(reminder);
 				document.getElementById("reminderText").value = "";
 				document.getElementById("reminderTime").value = "";
-				document.getElementById("reminder").innerText = tt('reminder_set', rawTime, task);
+				// speak confirmation
 				speak(tt('reminder_set', rawTime, task), langCode);
 			} else {
 				speak(tt('say_start_first'), langCode);
@@ -750,6 +794,7 @@
 
 		const weather = await getWeather(loc.lat, loc.lon);
 		if (weather) {
+			// weather.desc уже переведён translateWeatherDesc
 			document.getElementById("weather").innerText = tt('weather_text', weather.temp, weather.desc);
 			speak(tt('temp_weather_tts', weather.temp, weather.desc), langCode);
 		}
