@@ -3,24 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Экстренные службы и напоминания</title>
+  <title>Экстренные службы и напоминания — с мультфильмом</title>
   <style>
-    :root{--bg:#f3f6fb;--panel:#fff;--accent:#2b7cff;--muted:#666;}
-    html,body{height:100%} body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial; margin:0; background:var(--bg); padding:20px; color:#071029}
-    h1{margin:0 0 12px;font-size:20px}
-    .panel{background:var(--panel);padding:14px;border-radius:10px;box-shadow:0 8px 28px rgba(12,20,40,0.06);margin-bottom:14px}
-    label{margin-right:8px}
+    :root{--bg:#f3f7fb;--panel:#fff;--accent:#2b7cff;--muted:#6b7280}
+    body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial; margin:0; background:var(--bg); color:#071029; padding:18px}
+    h1{font-size:20px;margin:0 0 12px}
+    .panel{background:var(--panel);padding:12px;border-radius:10px;box-shadow:0 8px 20px rgba(12,20,40,0.06);margin-bottom:12px}
     input[type="text"], input[type="time"]{padding:8px;border-radius:8px;border:1px solid #e6e9ef}
     button{background:var(--accent);color:#fff;border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
-    button.ghost{background:transparent;color:var(--accent);border:1px solid #d7e6ff}
-    .status{color:var(--muted);font-size:0.95em}
-    .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eee;font-size:12px;margin-left:8px}
-    .badge.on{background:#dff6dd;color:#1a7f37}
-    .badge.off{background:#ffe2e2;color:#a40000}
-    #reminderList{margin-top:10px}
-    .reminder-item{display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:8px;background:#fafafa;margin-bottom:8px}
-    .reminder-text{margin-left:8px;flex:1}
-    .small{font-size:0.85em;color:#667085}
+    button.ghost{background:transparent;color:var(--accent);border:1px solid #d7e6ff;padding:6px 10px}
+    .small{font-size:0.85em;color:var(--muted)}
     /* advice popup */
     #adviceAnimation{position:fixed;right:18px;bottom:18px;width:340px;max-width:calc(100% - 36px);background:rgba(255,255,255,0.98);border-radius:12px;padding:12px;box-shadow:0 10px 30px rgba(15,23,42,0.12);display:none;z-index:9999;align-items:center;gap:12px}
     #adviceAnimation.show{display:flex;animation:popupIn .32s ease-out}
@@ -29,23 +21,35 @@
     #adviceAnimation .title{font-weight:700;margin-bottom:6px}
     #adviceAnimation .desc{font-size:13px;color:#333}
     @keyframes popupIn{from{transform:translateY(10px) scale(.98);opacity:0}to{transform:none;opacity:1}}
-    /* cartoon popup */
-    #cartoonPopup{position:fixed;right:18px;bottom:18px;width:360px;max-width:calc(100% - 36px);background:linear-gradient(180deg,#fff,#f7fbff);border-radius:12px;padding:12px;box-shadow:0 10px 30px rgba(15,23,42,0.12);display:none;z-index:9999;overflow:hidden}
-    #cartoonPopup.show{display:block;animation:popupIn .28s ease-out}
-    .cartoon-row{display:flex;gap:12px;align-items:center}
-    .cartoon-svg{width:120px;height:120px;flex:0 0 120px}
-    .consequence-badge{margin-top:8px;display:block;font-size:13px;color:#374151;background:#f8fafc;padding:8px;border-radius:8px}
-    .closeBtn{background:transparent;border:0;font-size:18px;color:#6b7280;cursor:pointer}
-    /* animations */
-    .shiver{animation:shiverAnim 900ms linear infinite}
-    @keyframes shiverAnim{0%{transform:translateY(0)}25%{transform:translateY(-4px) rotate(-1deg)}50%{transform:translateY(0)}75%{transform:translateY(3px) rotate(1deg)}100%{transform:translateY(0)}}
-    .sunPulse{animation:sunPulse 1000ms ease-in-out infinite}
-    @keyframes sunPulse{0%{transform:scale(1)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
-    .rainDrop{animation:rainFall 700ms linear infinite}
-    @keyframes rainFall{0%{transform:translateY(-2px);opacity:1}50%{transform:translateY(6px);opacity:.7}100%{transform:translateY(-2px);opacity:1}}
-    .sneeze{opacity:0;animation:sneezePop 1200ms ease-in-out forwards}
-    @keyframes sneezePop{0%{opacity:0;transform:translateX(0) scale(.8)}30%{opacity:1;transform:translateX(6px) scale(1.02)}70%{opacity:1;transform:translateX(12px) scale(1)}100%{opacity:0;transform:translateX(18px) scale(.9)}}
-    @media (max-width:420px){#adviceAnimation{right:10px;left:10px;bottom:12px;padding:10px}#cartoonPopup{right:10px;left:10px;bottom:12px;padding:10px}.cartoon-svg{width:96px;height:96px;flex:0 0 96px}}
+    /* cartoon full-screen stage */
+    #cartoonStage { position: fixed; left: 0; top: 0; right: 0; bottom: 0; display: none; align-items: center; justify-content: center; background: rgba(6,10,23,0.5); z-index: 99999; }
+    #cartoonStage.show { display:flex; }
+    .stage-card { width: min(900px, 94%); max-width: 1100px; height: min(560px, 76vh); background: linear-gradient(180deg,#fefefe 0%, #f3f8ff 100%); border-radius: 14px; box-shadow: 0 20px 60px rgba(2,6,23,0.45); overflow: hidden; position: relative; display:flex; align-items:center; justify-content:center; padding:18px; }
+    .scene { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px; opacity:0; transform:scale(.98); }
+    .scene.show { opacity:1; transform:scale(1); transition: opacity .45s ease, transform .45s cubic-bezier(.2,.9,.3,1); }
+    .sky { width:100%; height:220px; display:block; background:linear-gradient(180deg,#bde0ff,#e6f2ff); border-radius:10px; margin-bottom:6px; position:relative; overflow:hidden }
+    .ground { width:100%; height:120px; background:linear-gradient(180deg,#7ad29f,#3da67a); border-radius:8px; position:relative; }
+    .character { width:160px; height:200px; display:block; position:relative; }
+    .char-body { width:100px; height:120px; background:#7aa2ff; border-radius:14px; position:absolute; left:30px; top:60px; box-shadow:inset 0 -6px 0 rgba(0,0,0,0.06) }
+    .char-head { width:76px; height:76px; background:linear-gradient(180deg,#ffd9b3,#ffc899); border-radius:50%; position:absolute; left:42px; top:6px; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 12px rgba(0,0,0,0.06) }
+    .eye { width:6px; height:6px; background:#111; border-radius:50%; position:absolute }
+    .eye.left { left:22px; top:28px }
+    .eye.right { right:22px; top:28px }
+    .mouth { width:28px; height:8px; border-radius:8px; background:transparent; border-bottom:3px solid #111; position:absolute; bottom:14px; left:50%; transform:translateX(-50%); }
+    .scarf { width:120px; height:18px; background:#ff8b8b; border-radius:8px; position:absolute; left:20px; top:120px }
+    .cap { width:92px; height:32px; background:#f7c948; border-radius:14px; position:absolute; left:34px; top:-6px }
+    .shiver { animation:shiverAnim .9s linear infinite; transform-origin:center; }
+    @keyframes shiverAnim {0%{transform:translateY(0)}25%{transform:translateY(-6px) rotate(-1.2deg)}50%{transform:translateY(0)}75%{transform:translateY(4px) rotate(1.2deg)}100%{transform:translateY(0)}}
+    .sun { position:absolute; right:18px; top:18px; width:110px; height:110px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #fff7c6, #ffd166); box-shadow:0 12px 40px rgba(255,160,60,0.18); transform-origin:center; animation:sunPulse 1.1s ease-in-out infinite; }
+    @keyframes sunPulse {0%{transform:scale(1)}50%{transform:scale(1.06)}100%{transform:scale(1)}}
+    .raindrop { width:8px; height:14px; background:#60a5fa; border-radius:4px; transform:rotate(20deg); animation:rainFall .65s linear infinite; opacity:.95 }
+    @keyframes rainFall {0%{transform:translateY(-6px) rotate(20deg);opacity:1}50%{transform:translateY(10px) rotate(20deg);opacity:.7}100%{transform:translateY(-6px) rotate(20deg);opacity:1}}
+    .speech-bubble { background:rgba(255,255,255,0.98); padding:10px 12px; border-radius:12px; box-shadow:0 8px 26px rgba(2,6,23,0.12); font-size:15px; max-width:560px; text-align:center }
+    .timeline { position:absolute; left:12px; bottom:12px; display:flex; gap:6px; }
+    .dot { width:8px;height:8px;border-radius:50%;background:#dbeafe;box-shadow:0 2px 6px rgba(2,6,23,0.06) }
+    .dot.active { background:#2b7cff }
+    .stage-close { position:absolute; right:12px; top:12px; background:transparent;border:0;color:#334155;font-size:20px;cursor:pointer; }
+    @media (max-width:740px){ .character{width:120px;height:150px} .char-body{width:76px;height:100px;left:22px;top:50px} .char-head{width:62px;height:62px;left:29px;top:4px} }
   </style>
 </head>
 <body>
@@ -55,12 +59,12 @@
     <label data-i18n="choose_language">Выберите язык (ru, en, uk, hu, fr):</label>
     <input id="langInput" type="text" value="ru" style="min-width:60px">
     <button id="startBtn" onclick="startApp()" data-i18n="start">Начать</button>
-    <span class="small" style="margin-left:12px" id="versionInfo">v1.0</span>
+    <span class="small" id="ver">v1.0</span>
   </div>
 
   <div class="panel" id="statusPanel">
     <strong data-i18n="status_label">Статус:</strong>
-    <span id="status" class="status" data-i18n="status_not_started">Не начато</span>
+    <span id="status" class="small" data-i18n="status_not_started">Не начато</span>
   </div>
 
   <div class="panel" id="weatherPanel">
@@ -78,23 +82,14 @@
     </div>
   </div>
 
-  <div class="panel" id="emergencyPanel">
-    <strong data-i18n="emergency_actions">Экстренные действия:</strong><br>
-    <button id="btnSound" onclick="emergencySoundDetection(currentCountry)" data-i18n="check_sound">Проверить звук</button>
-    <button id="btnPolice" onclick="emergencyCall(currentCountry,'полиция')" data-i18n="police">Полиция</button>
-    <button id="btnFire" onclick="emergencyCall(currentCountry,'пожарная')" data-i18n="fire">Пожарная</button>
-    <button id="btnAmbulance" onclick="emergencyCall(currentCountry,'скорая')" data-i18n="ambulance">Скорая</button>
-  </div>
-
   <div class="panel" id="voicePanel">
     <strong data-i18n="voice_control">Голосовое управление</strong>
-    <span id="micState" class="badge off">микрофон: выкл</span>
-    <div class="status" id="voiceHints" data-i18n="voice_examples">Команда: "начать", "язык ru", "погода", "полиция", "напомни в 15:30 позвонить маме"</div>
-    <button id="micToggle">Включить микрофон</button>
-    <span id="recognized">---</span>
+    <span id="micState" class="small" style="margin-left:8px">микрофон: выкл</span>
+    <div class="small" id="voiceHints">Команда: "начать", "язык ru", "погода", "полиция", "напомни в 15:30 позвонить маме"</div>
+    <button id="micToggle" style="margin-top:8px">Включить микрофон</button>
+    <div id="recognized" class="small" style="margin-top:8px">---</div>
   </div>
 
-  <!-- advice popup -->
   <div id="adviceAnimation" role="status" aria-live="polite">
     <div class="icon" id="adviceIcon">🧥</div>
     <div class="content">
@@ -103,196 +98,104 @@
     </div>
   </div>
 
-  <!-- cartoon popup -->
-  <div id="cartoonPopup" role="status" aria-live="polite">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div style="display:flex;gap:10px;align-items:center">
-        <svg class="cartoon-svg" viewBox="0 0 120 120" aria-hidden="true">
-          <defs><linearGradient id="gSkin" x1="0" x2="1"><stop offset="0" stop-color="#ffd9b3"/><stop offset="1" stop-color="#ffc899"/></linearGradient></defs>
-          <g id="scene">
-            <g id="bodyGroup" transform="translate(60,70)"><rect x="-22" y="-6" rx="8" ry="8" width="44" height="46" fill="#7aa2ff"/></g>
-            <g id="headGroup" transform="translate(60,40)"><circle cx="0" cy="0" r="18" fill="url(#gSkin)"/><circle cx="-6" cy="-2" r="2" fill="#1f2937"/><circle cx="6" cy="-2" r="2" fill="#1f2937"/><path d="M -6 6 q 6 6 12 0" stroke="#111827" stroke-width="1.6" fill="none" stroke-linecap="round"/></g>
-            <g id="accessory" transform="translate(60,58)"></g>
-            <g id="sunGroup" transform="translate(98,18)" opacity="0"><circle cx="0" cy="0" r="10" fill="#FFD166"/><g stroke="#FFD166" stroke-width="2"><line x1="-16" y1="0" x2="-10" y2="0"/><line x1="16" y1="0" x2="10" y2="0"/><line x1="0" y1="-16" x2="0" y2="-10"/><line x1="0" y1="16" x2="0" y2="10"/></g></g>
-            <g id="rainGroup" transform="translate(60,8)" opacity="0"><path class="rainDrop" d="M-18,0 q2,8 5,0" fill="#60a5fa" opacity="0.95"/><path class="rainDrop" d="M0,0 q2,8 5,0" fill="#60a5fa" opacity="0.95" style="animation-delay:120ms"/><path class="rainDrop" d="M18,0 q2,8 5,0" fill="#60a5fa" opacity="0.95" style="animation-delay:240ms"/></g>
-            <g id="sneezeGroup" transform="translate(86,48)" opacity="0"><g class="sneeze"><ellipse cx="0" cy="0" rx="18" ry="10" fill="#e6eefb"/><circle cx="12" cy="-2" r="4" fill="#e6eefb"/></g></g>
-          </g>
-        </svg>
-        <div style="flex:1">
-          <div style="font-weight:700" id="cartoonTitle">Совет по одежде</div>
-          <div id="cartoonDesc">Если не послушать совет, может случиться...</div>
-          <span class="consequence-badge" id="consequenceBadge" style="display:none"></span>
+  <div id="cartoonStage" aria-hidden="true" role="dialog" aria-live="polite">
+    <div class="stage-card" role="document">
+      <button class="stage-close" onclick="forceHideCartoon()" title="Закрыть">✕</button>
+
+      <div id="scene-cold" class="scene" aria-hidden="true">
+        <div class="sky" style="width:90%;border-radius:10px;display:flex;align-items:center;justify-content:center">
+          <div style="position:absolute;left:18px;top:18px;font-size:20px;color:#fff">❄️</div>
+          <div class="character shiver" aria-hidden="true">
+            <div class="char-head"><div class="eye left"></div><div class="eye right"></div><div class="mouth" style="border-bottom-color:#111"></div></div>
+            <div class="char-body"></div>
+            <div class="scarf"></div>
+          </div>
         </div>
+        <div class="speech-bubble" id="bubble-cold">Вы промёрзли — наденьте тёплую одежду, иначе можно простыть.</div>
+        <div class="timeline"><div class="dot active"></div><div class="dot"></div><div class="dot"></div></div>
       </div>
-      <div><button class="closeBtn" onclick="hideCartoon()" id="cartoonClose" aria-label="close">✕</button></div>
+
+      <div id="scene-rain" class="scene" aria-hidden="true">
+        <div class="sky" style="width:90%;border-radius:10px;display:flex;align-items:flex-start;justify-content:space-around;padding:14px">
+          <div style="position:absolute;right:32px;top:12px"><div class="sun" style="display:none"></div></div>
+          <div style="position:absolute;left:24px;top:18px;display:flex;flex-direction:column;gap:6px">
+            <div class="raindrop" style="animation-delay:0ms"></div>
+            <div class="raindrop" style="animation-delay:120ms"></div>
+            <div class="raindrop" style="animation-delay:240ms"></div>
+          </div>
+          <div class="character" aria-hidden="true">
+            <div class="char-head"><div class="eye left"></div><div class="eye right"></div><div class="mouth" style="border-bottom-color:#111"></div></div>
+            <div class="char-body"></div>
+            <div class="accessory" style="position:absolute;left:12px;top:120px"></div>
+          </div>
+        </div>
+        <div class="speech-bubble" id="bubble-rain">Возможно дождливо — возьмите куртку и зонтик.</div>
+        <div class="timeline"><div class="dot"></div><div class="dot active"></div><div class="dot"></div></div>
+      </div>
+
+      <div id="scene-hot" class="scene" aria-hidden="true">
+        <div class="sky" style="width:90%;border-radius:10px;display:flex;align-items:center;justify-content:center">
+          <div class="sun" style="right:18px;top:18px"></div>
+          <div class="character" aria-hidden="true">
+            <div class="char-head"><div class="eye left"></div><div class="eye right"></div><div class="mouth" style="border-bottom-color:#111"></div></div>
+            <div class="char-body"></div>
+            <div class="cap" style="position:absolute;left:34px;top:-10px"></div>
+          </div>
+        </div>
+        <div class="speech-bubble" id="bubble-hot">Жарко — наденьте лёгкую одежду и головной убор, пейте больше воды.</div>
+        <div class="timeline"><div class="dot"></div><div class="dot"></div><div class="dot active"></div></div>
+      </div>
+
     </div>
   </div>
 
 <script>
-/* Полный функциональный файл:
-   - i18n для ru,en,uk,hu,fr
-   - геолокация -> Nominatim -> нормализация страны
-   - погода (wttr.in)
-   - напоминания (localStorage), планирование, удаление
-   - TTS (speakWithCallback) и автоматический запуск мини-мультика после речи
-   - всплывающий совет по одежде
-   - мини-мульт (SVG) автоматический
-   - STT (SpeechRecognition) голосовые команды
-   - экстренные номера и простая логика звонка
+/* Самодостаточный файл:
+   - локализация (частичная, основные фразы RU/EN)
+   - геолокация, получение погоды (wttr.in)
+   - напоминания (localStorage)
+   - TTS с onend callback, автоматический запуск мультфильма после речи
+   - полноэкранный мультфильм (несколько сцен), запускается без кликов
+   - базовое STT (включение/выключение микрофона) и голосовые шаблоны (минимально)
 */
 
-/* ---------------- i18n ---------------- */
+/* ========== i18n ========== */
 let langCode = 'ru';
 const i18n = {
   ru: {
-    title:"Экстренные службы и напоминания", choose_language:"Выберите язык (ru, en, uk, hu, fr):",
-    start:"Начать", status_label:"Статус:", status_not_started:"Не начато", locating:"Определяем местоположение...", location_failed:"Не удалось определить местоположение.",
-    your_country:(c)=>`Ваша страна: ${c}`, weather_label:"Погода:", reminders_label:"Напоминания:", emergency_actions:"Экстренные действия:",
-    check_sound:"Проверить звук", police:"Полиция", fire:"Пожарная", ambulance:"Скорая", voice_control:"Голосовое управление",
-    voice_examples:'Команда: "начать", "язык ru", "погода", "полиция", "напомни в 15:30 позвонить маме"', mic_on:"микрофон: вкл", mic_off:"микрофон: выкл",
-    mic_btn_on:"Выключить микрофон", mic_btn_off:"Включить микрофон", browser_no_stt:"Ваш браузер не поддерживает распознавание речи.",
-    say_start_first:"Сначала скажите 'начать' для определения местоположения.", now_weather_tts:(t,d)=>`Сейчас ${t} градусов, ${d}`,
-    temp_weather_tts:(t,d)=>`Сейчас температура ${t} градусов, ${d}`, reminder_set:(time,task)=>`Напоминание установлено на ${time}: ${task}`,
-    reminder_fire:(task,t,d)=>`Напоминаю: ${task}. Температура ${t}°C, погода: ${d}.`, clothing_advice_label:"Совет по одежде:",
-    recognized_prefix:"Распознано:", country_set:(c)=>`Страна установлена: ${c}`, add_reminder:"Добавить",
-    prompt_sound:"Какой звук вы услышали? (крик, стон, плач, вор, пожар или 'нет')", prompt_help:"Вы чувствуете боль или нужна помощь? (да/нет)",
-    advise_doctor:"Рекомендую обратиться к врачу.", be_careful:"Будьте осторожны.",
-    sound_not_recognized:"Звук не распознан или нет опасности.",
-    call_service_unavailable:(s)=>`Служба ${s} недоступна в вашей стране`,
-    consequence_very_cold:"Если вы не тёпло оденетесь, есть риск простуды или переохлаждения.",
-    consequence_cold:"Если не надеть свитер, можно зябнуть и простудиться.",
-    consequence_cool:"Если не взять лёгкую куртку, будет некомфортно на ветру.",
-    consequence_warm:"Если не надеть кепку, можно получить перегрев на солнце.",
-    consequence_hot:"Если не защититься от солнца, есть риск солнечного удара."
+    title:"Экстренные службы и напоминания", choose_language:"Выберите язык (ru, en, uk, hu, fr):", start:"Начать",
+    status_not_started:"Не начато", locating:"Определяем местоположение...", location_failed:"Не удалось определить местоположение.",
+    your_country:(c)=>`Ваша страна: ${c}`, weather_label:"Погода:", reminders_label:"Напоминания:", add_reminder:"Добавить",
+    clothing_advice_label:"Совет по одежде:", reminder_set:(t,task)=>`Напоминание установлено на ${t}: ${task}`,
+    reminder_fire:(task,t,d)=>`Напоминаю: ${task}. Температура ${t}°C, погода: ${d}.`, temp_weather_tts:(t,d)=>`Сейчас температура ${t} градусов, ${d}`
   },
   en: {
-    title:"Emergency services and reminders", choose_language:"Choose language (ru, en, uk, hu, fr):",
-    start:"Start", status_label:"Status:", status_not_started:"Not started", locating:"Detecting location...", location_failed:"Failed to determine location.",
-    your_country:(c)=>`Your country: ${c}`, weather_label:"Weather:", reminders_label:"Reminders:", emergency_actions:"Emergency actions:",
-    check_sound:"Check sound", police:"Police", fire:"Fire", ambulance:"Ambulance", voice_control:"Voice control",
-    voice_examples:'Example: "start", "language en", "weather", "police", "remind at 15:30 call mom"', mic_on:"microphone: on", mic_off:"microphone: off",
-    mic_btn_on:"Turn off mic", mic_btn_off:"Turn on mic", browser_no_stt:"Your browser does not support speech recognition.",
-    say_start_first:"Say 'start' first to determine location.", now_weather_tts:(t,d)=>`It is now ${t} degrees, ${d}`,
-    temp_weather_tts:(t,d)=>`Current temperature ${t} degrees, ${d}`, reminder_set:(time,task)=>`Reminder set at ${time}: ${task}`,
-    reminder_fire:(task,t,d)=>`Reminder: ${task}. Temperature ${t}°C, weather: ${d}.`, clothing_advice_label:"Clothing advice:",
-    recognized_prefix:"Recognized:", country_set:(c)=>`Country set: ${c}`, add_reminder:"Add",
-    prompt_sound:"What sound did you hear? (scream, groan, cry, thief, fire or 'no')", prompt_help:"Are you in pain or need help? (yes/no)",
-    advise_doctor:"I recommend seeing a doctor.", be_careful:"Be careful.",
-    sound_not_recognized:"Sound not recognized or no danger.",
-    call_service_unavailable:(s)=>`Service ${s} is unavailable in your country`,
-    consequence_very_cold:"If you don't dress warmly you may risk hypothermia or severe cold.",
-    consequence_cold:"If you skip a sweater, you might get chilled and catch a cold.",
-    consequence_cool:"Without a light jacket you'll feel uncomfortable in the wind.",
-    consequence_warm:"Without a cap you might get overheated under the sun.",
-    consequence_hot:"Without sun protection you risk sunstroke or severe dehydration."
-  },
-  uk: {
-    title:"Екстрені служби та нагадування", choose_language:"Оберіть мову (ru, en, uk, hu, fr):",
-    start:"Почати", status_label:"Статус:", status_not_started:"Не розпочато", locating:"Визначаємо місцезнаходження...", location_failed:"Не вдалося визначити місцезнаходження.",
-    your_country:(c)=>`Ваша країна: ${c}`, weather_label:"Погода:", reminders_label:"Нагадування:", emergency_actions:"Екстрені дії:",
-    check_sound:"Перевірити звук", police:"Поліція", fire:"Пожежна", ambulance:"Швидка", voice_control:"Голосове керування",
-    voice_examples:'Приклади: "почати", "мова uk", "погода", "поліція", "нагадай о 15:30 зателефонувати мамі"', mic_on:"мікрофон: увімк", mic_off:"мікрофон: вимк",
-    mic_btn_on:"Вимкнути мікрофон", mic_btn_off:"Увімкнути мікрофон", browser_no_stt:"Ваш браузер не підтримує розпізнавання мовлення.",
-    say_start_first:"Спочатку скажіть 'почати' для визначення місцезнаходження.", now_weather_tts:(t,d)=>`Зараз ${t} градусів, ${d}`,
-    temp_weather_tts:(t,d)=>`Зараз температура ${t} градусів, ${d}`, reminder_set:(time,task)=>`Нагадування встановлено на ${time}: ${task}`,
-    reminder_fire:(task,t,d)=>`Нагадую: ${task}. Температура ${t}°C, погода: ${d}.`, clothing_advice_label:"Порада щодо одягу:",
-    recognized_prefix:"Розпізнано:", country_set:(c)=>`Країну встановлено: ${c}`, add_reminder:"Додати",
-    prompt_sound:"Який звук ви почули? (крик, стогін, плач, злодій, пожежа або 'ні')", prompt_help:"Вам боляче або потрібна допомога? (так/ні)",
-    advise_doctor:"Рекомендую звернутися до лікаря.", be_careful:"Будьте обережні.",
-    sound_not_recognized:"Звук не розпізнано або небезпеки немає.",
-    call_service_unavailable:(s)=>`Служба ${s} недоступна у вашій країні`,
-    consequence_very_cold:"Якщо ви не одягнетеся тепліше, існує ризик переохолодження або сильного захворювання.",
-    consequence_cold:"Якщо не надягнути светр, можна змерзнути і захворіти.",
-    consequence_cool:"Якщо не взяти легку куртку — буде некомфортно на вітрі.",
-    consequence_warm:"Якщо не надягнути кепку, можна перегрітися на сонці.",
-    consequence_hot:"Якщо не захиститися від сонця — є ризик сонячного удару."
-  },
-  hu: {
-    title:"Segélyhívás és emlékeztetők", choose_language:"Válassz nyelvet (ru, en, uk, hu, fr):",
-    start:"Indítás", status_label:"Állapot:", status_not_started:"Nincs elindítva", locating:"Helyzet meghatározása...", location_failed:"Nem sikerült meghatározni a helyzetet.",
-    your_country:(c)=>`Országod: ${c}`, weather_label:"Időjárás:", reminders_label:"Emlékeztetők:", emergency_actions:"Vészhelyzeti műveletek:",
-    check_sound:"Hang ellenőrzése", police:"Rendőrség", fire:"Tűzoltóság", ambulance:"Mentő", voice_control:"Hangvezérlés",
-    voice_examples:'Példa: "indítás", "nyelv hu", "időjárás", "rendőrség", "emlékeztess 15:30-kor, hogy felhívjam anyut"', mic_on:"mikrofon: be", mic_off:"mikrofon: ki",
-    mic_btn_on:"Mikrofon kikapcsolása", mic_btn_off:"Mikrofon bekapcsolása", browser_no_stt:"A böngésződ nem támogatja a beszédfelismerést.",
-    say_start_first:"Mondd először, hogy 'indítás' a helyzet meghatározásához.", now_weather_tts:(t,d)=>`Most ${t} fok van, ${d}`,
-    temp_weather_tts:(t,d)=>`Jelenlegi hőmérséklet ${t} fok, ${d}`, reminder_set:(time,task)=>`Emlékeztető beállítva ${time}-ra: ${task}`,
-    reminder_fire:(task,t,d)=>`Emlékeztető: ${task}. Hőmérséklet ${t}°C, időjárás: ${d}.`, clothing_advice_label:"Öltözködési tanács:",
-    recognized_prefix:"Felismerve:", country_set:(c)=>`Ország beállítva: ${c}`, add_reminder:"Hozzáad",
-    prompt_sound:"Milyen hangot hallottál? (sikoly, nyögés, sírás, tolvaj, tűz vagy 'nem')", prompt_help:"Fájdalmat érzel vagy segítségre van szükséged? (igen/nem)",
-    advise_doctor:"Javaslom, fordulj orvoshoz.", be_careful:"Légy óvatos.",
-    sound_not_recognized:"A hang nem felismerhető vagy nincs veszély.",
-    call_service_unavailable:(s)=>`A(z) ${s} szolgáltatás nem érhető el az országodban`,
-    consequence_very_cold:"Ha nem öltözöl fel melegen, megfázás vagy kihűlés veszélye áll fenn.",
-    consequence_cold:"Ha nem veszel pulóvert, megfázhatsz.",
-    consequence_cool:"Ha nem viszel könnyű dzsekit, kényelmetlen lesz a szél.",
-    consequence_warm:"Ha nem veszel sapkát, túlhevülhetsz a napon.",
-    consequence_hot:"Ha nem védekezel a napon, napszúrást kaphatsz."
-  },
-  fr: {
-    title:"Services d'urgence et rappels", choose_language:"Choisissez la langue (ru, en, uk, hu, fr):",
-    start:"Démarrer", status_label:"Statut:", status_not_started:"Non démarré", locating:"Détection de la position...", location_failed:"Impossible de déterminer la position.",
-    your_country:(c)=>`Votre pays: ${c}`, weather_label:"Météo:", reminders_label:"Rappels:", emergency_actions:"Actions d'urgence:",
-    check_sound:"Vérifier le son", police:"Police", fire:"Pompiers", ambulance:"Ambulance", voice_control:"Commande vocale",
-    voice_examples:'Exemple: "démarrer", "langue fr", "météo", "police", "rappelle à 15:30 d\'appeler maman"', mic_on:"micro: activé", mic_off:"micro: désactivé",
-    mic_btn_on:"Désactiver le micro", mic_btn_off:"Activer le micro", browser_no_stt:"Votre navigateur ne prend pas en charge la reconnaissance vocale.",
-    say_start_first:"Dites d'abord 'démarrer' pour déterminer la position.", now_weather_tts:(t,d)=>`Il fait ${t} degrés, ${d}`,
-    temp_weather_tts:(t,d)=>`Température actuelle ${t} degrés, ${d}`, reminder_set:(time,task)=>`Rappel réglé à ${time} : ${task}`,
-    reminder_fire:(task,t,d)=>`Rappel: ${task}. Température ${t}°C, météo: ${d}.`, clothing_advice_label:"Conseil vestimentaire:",
-    recognized_prefix:"Reconnu :", country_set:(c)=>`Pays défini : ${c}`, add_reminder:"Ajouter",
-    prompt_sound:"Quel son avez-vous entendu ? (cri, gémissement, pleur, voleur, feu ou 'non')", prompt_help:"Avez-vous mal ou besoin d'aide ? (oui/non)",
-    advise_doctor:"Je recommande de consulter un médecin.", be_careful:"Soyez prudent.",
-    sound_not_recognized:"Son non reconnu ou aucun danger.",
-    call_service_unavailable:(s)=>`Le service ${s} n'est pas disponible dans votre pays`,
-    consequence_very_cold:"Si vous ne vous couvrez pas, risque d'hypothermie ou de grave rhume.",
-    consequence_cold:"Sans pull, vous risquez d'avoir froid et de tomber malade.",
-    consequence_cool:"Sans veste légère, le vent sera inconfortable.",
-    consequence_warm:"Sans casquette, vous pouvez surchauffer au soleil.",
-    consequence_hot:"Sans protection solaire, risque de coup de chaleur."
+    title:"Emergency services and reminders", choose_language:"Choose language (ru, en, uk, hu, fr):", start:"Start",
+    status_not_started:"Not started", locating:"Detecting location...", location_failed:"Failed to determine location.",
+    your_country:(c)=>`Your country: ${c}`, weather_label:"Weather:", reminders_label:"Reminders:", add_reminder:"Add",
+    clothing_advice_label:"Clothing advice:", reminder_set:(t,task)=>`Reminder set at ${t}: ${task}`,
+    reminder_fire:(task,t,d)=>`Reminder: ${task}. Temperature ${t}°C, weather: ${d}.`, temp_weather_tts:(t,d)=>`Current temperature ${t} degrees, ${d}`
   }
 };
-function tt(key, ...args){ const bucket = i18n[langCode] || i18n.ru; const v = bucket[key]; return typeof v === 'function' ? v(...args) : (v ?? (typeof i18n.ru[key]==='function' ? i18n.ru[key](...args) : i18n.ru[key])); }
+function tt(key,...args){ const b = i18n[langCode] || i18n.ru; const v = b[key]; return typeof v === 'function' ? v(...args) : (v ?? (typeof i18n.ru[key] === 'function' ? i18n.ru[key](...args) : i18n.ru[key])); }
 
-/* ---------------- Utils ---------------- */
+/* ========== utils ========== */
 function mapLangToBCP47(l){ switch((l||'ru').toLowerCase()){case 'ru':return 'ru-RU';case 'en':return 'en-US';case 'uk':return 'uk-UA';case 'hu':return 'hu-HU';case 'fr':return 'fr-FR';default:return 'ru-RU'} }
-function normalizeString(s){ if(!s) return ''; try{return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()}catch(e){return String(s).toLowerCase().trim()} }
 
-/* ---------------- Country translations & normalization ---------------- */
-const COUNTRY_TRANSLATIONS = {
-  "Россия":{ru:"Россия",en:"Russia",uk:"Росія",hu:"Oroszország",fr:"Russie"},
-  "США":{ru:"США",en:"USA",uk:"США",hu:"USA",fr:"États-Unis"},
-  "Украина":{ru:"Украина",en:"Ukraine",uk:"Україна",hu:"Ukrajna",fr:"Ukraine"},
-  "Венгрия":{ru:"Венгрия",en:"Hungary",uk:"Угорщина",hu:"Magyarország",fr:"Hongrie"},
-  "Франция":{ru:"Франция",en:"France",uk:"Франція",hu:"Franciaország",fr:"France"},
-  "Неизвестно":{ru:"Неизвестно",en:"Unknown",uk:"Невідомо",hu:"Ismeretlen",fr:"Inconnu"}
-};
-const countryAliases = {
-  "россия":"Россия","рф":"Россия","russia":"Россия","usa":"США","сша":"США","united states":"США","укания":"Украина","украина":"Украина","hungary":"Венгрия","венгрия":"Венгрия","france":"Франция","франция":"Франция"
-};
-function normalizeCountryName(raw){
-  if(!raw) return "Неизвестно";
-  const s = normalizeString(raw);
-  if(s.length===2){
-    const map = {ru:"Россия",us:"США",ua:"Украина",hu:"Венгрия",fr:"Франция"};
-    if(map[s]) return map[s];
-  }
-  if(countryAliases[s]) return countryAliases[s];
-  for(const canon of Object.keys(COUNTRY_TRANSLATIONS)){
-    for(const t of Object.values(COUNTRY_TRANSLATIONS[canon])){
-      if(normalizeString(t)===s) return canon;
-    }
-  }
-  const found = Object.keys(countryAliases).find(a => s.includes(a));
-  if(found) return countryAliases[found];
-  return raw;
-}
-function translateCountryName(canon, targetLang){
-  if(!canon) canon="Неизвестно";
-  const t = COUNTRY_TRANSLATIONS[canon];
-  if(!t) return canon;
-  return t[targetLang] || t.en || canon;
+/* ========== TTS ========== */
+function speakWithCallback(text, lang, onEnd){
+  try{
+    if(!('speechSynthesis' in window)){ if(typeof onEnd==='function') setTimeout(onEnd,700); return; }
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = mapLangToBCP47(lang);
+    u.onend = ()=>{ if(typeof onEnd === 'function') onEnd(); };
+    u.onerror = ()=>{ if(typeof onEnd === 'function') onEnd(); };
+    speechSynthesis.speak(u);
+  }catch(e){ console.warn('TTS', e); if(typeof onEnd==='function') setTimeout(onEnd,700); }
 }
 
-/* ---------------- Weather (wttr.in) ---------------- */
+/* ========== Weather (wttr.in) ========== */
 async function getWeather(lat, lon){
   try{
     const url = `https://wttr.in/${lat},${lon}?format=j1`;
@@ -300,109 +203,50 @@ async function getWeather(lat, lon){
     const data = await res.json();
     const cur = data.current_condition && data.current_condition[0];
     if(!cur) return null;
-    const raw = cur.weatherDesc?.[0]?.value || '';
-    return { temp: Number(cur.temp_C), desc: raw, rawDesc: raw };
-  }catch(e){ console.warn('getWeather',e); return null; }
+    return { temp: Number(cur.temp_C), desc: cur.weatherDesc?.[0]?.value || '' };
+  }catch(e){ console.warn('getWeather', e); return null; }
 }
 
-/* ---------------- Reverse geocode (Nominatim) ---------------- */
-async function getCountry(lat, lon){
-  try{
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
-    const data = await res.json();
-    const rawCountry = data?.address?.country || data?.address?.country_code || "Неизвестно";
-    return normalizeCountryName(rawCountry);
-  }catch(e){ console.warn('getCountry',e); return "Неизвестно"; }
-}
-
-/* ---------------- Geolocation ---------------- */
+/* ========== Geolocation ========== */
 async function getLocation(){
   return new Promise(resolve=>{
     if(navigator.geolocation){
-      navigator.geolocation.getCurrentPosition(pos=>resolve({lat:pos.coords.latitude,lon:pos.coords.longitude}),
-        err=>{console.warn('geo err',err); resolve(null)}, {timeout:10000});
+      navigator.geolocation.getCurrentPosition(p=>resolve({lat:p.coords.latitude, lon:p.coords.longitude}), e=>{ console.warn(e); resolve(null); }, { timeout:10000 });
     } else resolve(null);
   });
 }
 
-/* ---------------- TTS with callback ---------------- */
-function speakWithCallback(text, lang, onEnd){
-  try{
-    if(!('speechSynthesis' in window)){ if(typeof onEnd==='function') setTimeout(onEnd,800); return; }
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = mapLangToBCP47(lang);
-    u.onend = ()=>{ if(typeof onEnd==='function') onEnd(); };
-    u.onerror = ()=>{ if(typeof onEnd==='function') onEnd(); };
-    speechSynthesis.speak(u);
-  }catch(e){ console.warn('TTS',e); if(typeof onEnd==='function') setTimeout(onEnd,800); }
-}
-
-/* ---------------- Clothing advice ---------------- */
-const CLOTHING_ADVICE = {
-  ru:{very_cold:"Очень холодно — наденьте тёплую куртку, шарф и перчатки.", cold:"Холодно — можно надеть свитер или лёгкую куртку.", cool:"Прохладно — возьмите ветровку или лёгкую куртку.", warm:"Тёпло — можно надеть футболку, возможно кепку.", hot:"Жарко — наденьте лёгкую одежду и кепку, пейте больше воды."},
-  en:{very_cold:"Very cold — wear a warm coat, scarf and gloves.", cold:"Cold — you can wear a sweater or light jacket.", cool:"Cool — take a light jacket or windbreaker.", warm:"Warm — a t-shirt is fine, consider wearing a cap.", hot:"Hot — wear light clothing and a cap, stay hydrated."},
-  uk:{very_cold:"Дуже холодно — надягніть теплу куртку, шарф і рукавички.", cold:"Холодно — можна надіти светр або легку куртку.", cool:"Прохолодно — візьміть вітровку або легку куртку.", warm:"Тепло — можна надіти футболку, можливо кепку.", hot:"Спекотно — носіть легкий одяг і кепку, пийте більше води."},
-  hu:{very_cold:"Nagyon hideg — viselj meleg kabátot, sálat és kesztyűt.", cold:"Hideg — viselj pulóvert vagy könnyű dzsekit.", cool:"Hűvös — vigyél magaddal egy könnyű dzsekit vagy szélkabátot.", warm:"Meleg — póló elég, érdemes sapkát vinni.", hot:"Forró — viselj könnyű ruhát és sapkát, igyál sok vizet."},
-  fr:{very_cold:"Très froid — mettez un manteau chaud, une écharpe et des gants.", cold:"Froid — vous pouvez mettre un pull ou une veste légère.", cool:"Frais — prenez une veste légère ou un coupe-vent.", warm:"Chaud — un t-shirt suffit, pensez à une casquette.", hot:"Très chaud — portez des vêtements légers et une casquette, hydratez-vous."}
-};
-function getClothingAdvice(tempC){
-  const t = Number(tempC);
-  const dict = CLOTHING_ADVICE[langCode] || CLOTHING_ADVICE.ru;
-  if(isNaN(t)) return '';
-  if(t<=5) return dict.very_cold;
-  if(t<=15) return dict.cold;
-  if(t<=22) return dict.cool;
-  if(t<=30) return dict.warm;
-  return dict.hot;
-}
-function getTempCategory(tempC){
-  const t = Number(tempC);
-  if(isNaN(t)) return 'cool';
-  if(t<=5) return 'very_cold';
-  if(t<=15) return 'cold';
-  if(t<=22) return 'cool';
-  if(t<=30) return 'warm';
-  return 'hot';
-}
-
-/* ---------------- Reminders (localStorage) ---------------- */
-let reminders = []; // {id,time,task,lat,lon,spoken}
-const STORAGE_KEY = 'es_reminders_v1';
-
-function loadReminders(){
-  try{ const raw = localStorage.getItem(STORAGE_KEY); reminders = raw ? JSON.parse(raw) : []; }catch(e){ reminders = []; }
-  displayReminders();
-  reminders.forEach(r=>{ if(!r.spoken) scheduleReminderCheck(r); });
-}
+/* ========== Reminders ========== */
+let reminders = [];
+const STORAGE_KEY = 'cartoon_reminders_v1';
+function loadReminders(){ try{ const raw = localStorage.getItem(STORAGE_KEY); reminders = raw ? JSON.parse(raw) : []; }catch(e){ reminders = []; } displayReminders(); reminders.forEach(r => { if(!r.spoken) scheduleReminderCheck(r); }); }
 function saveReminders(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders)); }
 
 function addReminder(){
   const time = document.getElementById('reminderTime').value;
   const task = document.getElementById('reminderText').value.trim();
-  if(!time || !task) return alert({ru:'Введите время и текст напоминания', en:'Enter time and reminder text'}[langCode] || 'Enter time and text');
-  if(!lastLocation) return alert(tt('say_start_first'));
-  const id = Date.now()+Math.random();
-  const reminder = {id,time,task,lat:lastLocation.lat,lon:lastLocation.lon,spoken:false};
-  reminders.push(reminder); saveReminders(); displayReminders(); scheduleReminderCheck(reminder);
-  document.getElementById('reminderTime').value=''; document.getElementById('reminderText').value='';
+  if(!time || !task) return alert((langCode==='en') ? 'Enter time and text' : 'Введите время и текст напоминания');
+  if(!lastLocation) return alert(tt('locating'));
+  const id = Date.now() + Math.random();
+  const rem = { id, time, task, lat:lastLocation.lat, lon:lastLocation.lon, spoken:false };
+  reminders.push(rem); saveReminders(); displayReminders(); scheduleReminderCheck(rem);
+  document.getElementById('reminderTime').value = ''; document.getElementById('reminderText').value = '';
   speakWithCallback(tt('reminder_set', time, task), langCode, null);
 }
 
 function displayReminders(){
-  const container = document.getElementById('reminderList');
-  if(!reminders.length){ container.innerHTML = '<span class="small">---</span>'; return; }
-  container.innerHTML = '';
+  const c = document.getElementById('reminderList');
+  if(!reminders.length){ c.innerHTML = '<span class="small">---</span>'; return; }
+  c.innerHTML = '';
   reminders.forEach(r=>{
-    const div = document.createElement('div'); div.className='reminder-item';
-    const left = document.createElement('div'); left.innerHTML = `<strong>${r.time}</strong> <span class="reminder-text">${r.task}</span>`;
-    const right = document.createElement('div');
+    const el = document.createElement('div'); el.className = 'reminder-item';
+    el.innerHTML = `<div><strong>${r.time}</strong> <span class="reminder-text">${r.task}</span></div>`;
     const del = document.createElement('button'); del.textContent='Удалить'; del.className='ghost'; del.onclick = ()=>{ reminders = reminders.filter(x=>x.id!==r.id); saveReminders(); displayReminders(); };
-    right.appendChild(del); div.appendChild(left); div.appendChild(right); container.appendChild(div);
+    el.appendChild(del); c.appendChild(el);
   });
 }
 
-/* schedule: check every 15s */
+/* schedule check */
 function scheduleReminderCheck(reminder){
   const timer = setInterval(async ()=>{
     const now = new Date(); const hh = String(now.getHours()).padStart(2,'0'); const mm = String(now.getMinutes()).padStart(2,'0');
@@ -410,19 +254,35 @@ function scheduleReminderCheck(reminder){
       clearInterval(timer);
       reminder.spoken = true; saveReminders();
       const weather = await getWeather(reminder.lat, reminder.lon);
-      let spokenMsg = tt('reminder_set', reminder.time, reminder.task);
-      if(weather){ spokenMsg = tt('reminder_fire', reminder.task, weather.temp, weather.desc); const advice = getClothingAdvice(weather.temp); if(advice) spokenMsg = `${spokenMsg} ${tt('clothing_advice_label')} ${advice}`; }
-      // show short popup immediately
-      showAdvicePopup(weather?.temp, getClothingAdvice(weather?.temp));
-      // speak and after speech ends show cartoon automatically
-      speakWithCallback(spokenMsg, langCode, ()=>{ try{ showCartoonAnimation(weather?.temp); }catch(e){console.warn(e);} });
-      // remove from active reminders list (keeps in storage as spoken flag)
-      reminders = reminders.filter(r=>r.id!==reminder.id); saveReminders(); displayReminders();
+      let text = tt('reminder_set', reminder.time, reminder.task);
+      if(weather) text = tt('reminder_fire', reminder.task, weather.temp, weather.desc);
+      // show compact advice popup
+      showAdvicePopup(weather?.temp, chooseClothingAdvice(weather?.temp));
+      // speak and then show cartoon automatically
+      speakWithCallback(text, langCode, ()=>{ try{ showFullCartoon(weather ? weather.temp : null); }catch(e){ console.warn(e); } });
+      // remove from display list
+      reminders = reminders.filter(r=>r.id !== reminder.id); saveReminders(); displayReminders();
     }
-  }, 15*1000);
+  }, 12*1000);
 }
 
-/* ---------------- Advice popup & cartoon ---------------- */
+/* ========== Clothing advice (multi-lang simple) ========== */
+const CLOTHING = {
+  ru: { very_cold:"Очень холодно — наденьте тёплую куртку, шарф и перчатки.", cold:"Холодно — можно надеть свитер или лёгкую куртку.", cool:"Прохладно — возьмите ветровку или лёгкую куртку.", warm:"Тёпло — можно надеть футболку, возможно кепку.", hot:"Жарко — наденьте лёгкую одежду и кепку, пейте больше воды." },
+  en: { very_cold:"Very cold — wear a warm coat, scarf and gloves.", cold:"Cold — you can wear a sweater or light jacket.", cool:"Cool — take a light jacket.", warm:"Warm — a t-shirt is fine, consider a cap.", hot:"Hot — wear light clothing and a cap, stay hydrated." }
+};
+function chooseClothingAdvice(tempC){
+  const t = Number(tempC);
+  const dict = CLOTHING[langCode] || CLOTHING.ru;
+  if(isNaN(t)) return '';
+  if(t<=5) return dict.very_cold;
+  if(t<=15) return dict.cold;
+  if(t<=22) return dict.cool;
+  if(t<=30) return dict.warm;
+  return dict.hot;
+}
+
+/* ========== Advice popup & cartoon ========== */
 let adviceHideTimer = null;
 function showAdvicePopup(temp, adviceText){
   const pop = document.getElementById('adviceAnimation');
@@ -438,112 +298,72 @@ function showAdvicePopup(temp, adviceText){
   adviceHideTimer = setTimeout(()=>pop.classList.remove('show'),6000);
 }
 
-let cartoonHideTimer = null;
-function showCartoonAnimation(categoryOrTemp){
-  let category = categoryOrTemp;
-  if(typeof categoryOrTemp === 'number' || !isNaN(Number(categoryOrTemp))){
-    const t = Number(categoryOrTemp);
-    if(t<=5) category='very_cold'; else if(t<=15) category='cold'; else if(t<=22) category='cool'; else if(t<=30) category='warm'; else category='hot';
-  }
-  const popup = document.getElementById('cartoonPopup');
-  const title = document.getElementById('cartoonTitle');
-  const desc = document.getElementById('cartoonDesc');
-  const badge = document.getElementById('consequenceBadge');
-  const sun = document.getElementById('sunGroup');
-  const rain = document.getElementById('rainGroup');
-  const sneeze = document.getElementById('sneezeGroup');
-  const head = document.getElementById('headGroup');
-  const accessory = document.getElementById('accessory');
-
-  const CONSEQUENCES = {
-    very_cold: tt('consequence_very_cold'),
-    cold: tt('consequence_cold'),
-    cool: tt('consequence_cool'),
-    warm: tt('consequence_warm'),
-    hot: tt('consequence_hot')
-  };
-  const LABELS = { very_cold:{ru:'Очень холодно',en:'Very cold',uk:'Дуже холодно',hu:'Nagyon hideg',fr:'Très froid'}, cold:{ru:'Холодно',en:'Cold',uk:'Холодно',hu:'Hideg',fr:'Froid'}, cool:{ru:'Прохладно',en:'Cool',uk:'Прохолодно',hu:'Hűvös',fr:'Frais'}, warm:{ru:'Тёпло',en:'Warm',uk:'Тепло',hu:'Meleg',fr:'Chaud'}, hot:{ru:'Жарко',en:'Hot',uk:'Спекотно',hu:'Forró',fr:'Très chaud'} };
-
-  title.textContent = (LABELS[category] && LABELS[category][langCode]) || LABELS[category].ru || 'Совет';
-  desc.textContent = (CONSEQUENCES[category] || '').split('.')[0] + '.';
-  badge.style.display='block'; badge.textContent = CONSEQUENCES[category] || '';
-
-  // reset visuals
-  sun.style.opacity=0; sun.classList.remove('sunPulse');
-  rain.style.opacity=0; sneeze.style.opacity=0; head.classList.remove('shiver'); accessory.innerHTML='';
-
-  if(category==='very_cold' || category==='cold'){
-    head.classList.add('shiver');
-    accessory.innerHTML = '<rect x="-26" y="-2" rx="4" ry="4" width="52" height="12" fill="#ff8b8b"></rect>';
-  } else if(category==='cool'){
-    head.classList.add('shiver');
-    accessory.innerHTML = '<rect x="-20" y="-10" rx="6" ry="6" width="40" height="8" fill="#9ec5ff" transform="rotate(-8)"></rect>';
-    if(Math.random()>0.45) rain.style.opacity=1;
-  } else if(category==='warm' || category==='hot'){
-    sun.style.opacity=1; sun.classList.add('sunPulse');
-    accessory.innerHTML = '<circle cx="0" cy="-12" r="10" fill="#f7c948"></circle>';
-  }
-  if(category==='very_cold' && Math.random()>0.4){
-    setTimeout(()=>{ sneeze.style.opacity=1; const el=sneeze.querySelector('.sneeze'); if(el){ el.classList.remove('sneeze'); void el.offsetWidth; el.classList.add('sneeze'); } },500);
-  }
-  popup.classList.add('show');
-  if(cartoonHideTimer) clearTimeout(cartoonHideTimer);
-  cartoonHideTimer = setTimeout(()=>hideCartoon(),7000);
-}
-function hideCartoon(){
-  const popup=document.getElementById('cartoonPopup'); popup.classList.remove('show');
-  const sun=document.getElementById('sunGroup'); sun.style.opacity=0; sun.classList.remove('sunPulse');
-  const rain=document.getElementById('rainGroup'); rain.style.opacity=0;
-  const head=document.getElementById('headGroup'); head.classList.remove('shiver');
-  const sneeze=document.getElementById('sneezeGroup'); sneeze.style.opacity=0;
-  document.getElementById('accessory').innerHTML='';
-  document.getElementById('consequenceBadge').style.display='none';
-  if(cartoonHideTimer){ clearTimeout(cartoonHideTimer); cartoonHideTimer=null; }
+function getTempCategory(tempC){
+  const t = Number(tempC);
+  if(isNaN(t)) return 'cool';
+  if(t<=5) return 'very_cold';
+  if(t<=15) return 'cold';
+  if(t<=22) return 'cool';
+  if(t<=30) return 'warm';
+  return 'hot';
 }
 
-/* ---------------- Emergency numbers and logic ---------------- */
-const emergencyNumbers = {
-  "Россия":{"полиция":"+78001005050","пожарная":"+101","скорая":"+103","спасатели":"+112"},
-  "США":{"полиция":"+911","пожарная":"+911","скорая":"+911","спасатели":"+911"},
-  "Украина":{"полиция":"+102","пожарная":"+101","скорая":"+103","спасатели":"+112"},
-  "Венгрия":{"полиция":"+112","пожарная":"+105","скорая":"+104","спасатели":"+112"},
-  "Франция":{"полиция":"+17","пожарная":"+18","скорая":"+15","спасатели":"+112"}
-};
-function emergencyCall(country, service){
-  const canon = normalizeCountryName(country);
-  if(emergencyNumbers[canon] && emergencyNumbers[canon][service]){
-    const num = emergencyNumbers[canon][service];
-    const ttsKey = service==='полиция' ? 'call_police_tts' : (service==='пожарная' ? 'call_fire_tts' : 'call_ambulance_tts');
-    // fallback to simple speaking
-    const msg = { ru: `${service} ${num}`, en: `Calling ${service} ${num}` }[langCode] || `${service} ${num}`;
-    speakWithCallback(msg, langCode, null);
-  } else {
-    const display = translateCountryName(canon, langCode);
-    speakWithCallback(tt('call_service_unavailable', display), langCode, null);
+/* Cartoon timeline */
+let cartoonTimers = [];
+function clearCartoonTimers(){ cartoonTimers.forEach(h=>clearTimeout(h)); cartoonTimers = []; }
+function showFullCartoon(tempC){
+  clearCartoonTimers();
+  const t = typeof tempC === 'number' ? tempC : (tempC ? Number(tempC) : NaN);
+  let category = 'cool';
+  if(!isNaN(t)){
+    if(t<=5) category = 'very_cold';
+    else if(t<=15) category = 'cold';
+    else if(t<=22) category = 'cool';
+    else if(t<=30) category = 'warm';
+    else category = 'hot';
   }
-}
-function emergencySoundDetection(country){
-  const promptText = tt('prompt_sound');
-  const dict = {
-    ru:{harm:["крик","стон","плач"],thief:"вор",fire:"пожар",yes:"да",no:"нет"},
-    en:{harm:["scream","groan","cry"],thief:"thief",fire:"fire",yes:"yes",no:"no"},
-    uk:{harm:["крик","стогін","плач"],thief:"злодій",fire:"пожежа",yes:"так",no:"ні"},
-    hu:{harm:["sikoly","nyögés","sírás"],thief:"tolvaj",fire:"tűz",yes:"igen",no:"nem"},
-    fr:{harm:["cri","gémissement","pleur"],thief:"voleur",fire:"feu",yes:"oui",no:"non"}
-  };
-  const d = dict[langCode] || dict.ru;
-  const sound = prompt(promptText);
-  if(!sound){ speakWithCallback(tt('sound_not_recognized'), langCode); return; }
-  const s = sound.toLowerCase().trim();
-  if(d.harm.includes(s)){
-    const help = prompt(tt('prompt_help'))?.toLowerCase();
-    if(help === d.yes) speakWithCallback(tt('advise_doctor'), langCode); else speakWithCallback(tt('be_careful'), langCode);
-  } else if(s === d.thief) emergencyCall(country,'полиция');
-  else if(s === d.fire) emergencyCall(country,'пожарная');
-  else speakWithCallback(tt('sound_not_recognized'), langCode);
+
+  const stage = document.getElementById('cartoonStage');
+  stage.classList.add('show'); stage.setAttribute('aria-hidden','false');
+
+  // hide all scenes
+  ['scene-cold','scene-rain','scene-hot'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.classList.remove('show'); el.setAttribute('aria-hidden','true'); } });
+
+  // sequence decision
+  let sequence = [];
+  if(category === 'very_cold' || category === 'cold') sequence = ['scene-cold'];
+  else if(category === 'cool') sequence = ['scene-rain'];
+  else sequence = ['scene-hot'];
+
+  const sceneDuration = 2200;
+  const gap = 300;
+  let offset = 0;
+
+  sequence.forEach((sceneId, idx)=>{
+    cartoonTimers.push(setTimeout(()=>{ const el=document.getElementById(sceneId); if(el){ // populate localized bubble
+      const bubble = el.querySelector('.speech-bubble');
+      if(bubble){
+        if(sceneId==='scene-cold') bubble.textContent = (langCode==='en') ? 'You are cold — wear warm clothes or you may catch a cold.' : 'Вы промёрзли — наденьте тёплую одежду, иначе можно простыть.';
+        if(sceneId==='scene-rain') bubble.textContent = (langCode==='en') ? 'It may rain — take a jacket and umbrella.' : 'Возможно дождливо — возьмите куртку и зонтик.';
+        if(sceneId==='scene-hot') bubble.textContent = (langCode==='en') ? 'It is hot — wear light clothes and a hat, stay hydrated.' : 'Жарко — наденьте лёгкую одежду и головной убор, пейте больше воды.';
+      }
+      el.classList.add('show'); el.setAttribute('aria-hidden','false'); } }), offset);
+    // small visual beat inside scene
+    cartoonTimers.push(setTimeout(()=>{ if(sceneId==='scene-cold'){ const b = document.querySelector(`#${sceneId} .speech-bubble`); if(b){ b.style.transform='translateY(-6px)'; b.style.transition='transform 220ms ease'; setTimeout(()=>b.style.transform='',520); } } }, offset + 400));
+    // hide later
+    cartoonTimers.push(setTimeout(()=>{ const el=document.getElementById(sceneId); if(el){ el.classList.remove('show'); el.setAttribute('aria-hidden','true'); } }, offset + sceneDuration));
+    offset += sceneDuration + gap;
+  });
+
+  // final summary and hide
+  cartoonTimers.push(setTimeout(()=>{ const card=document.querySelector('.stage-card'); const summary=document.createElement('div'); summary.className='speech-bubble'; summary.style.position='absolute'; summary.style.left='50%'; summary.style.top='50%'; summary.style.transform='translate(-50%,-50%) scale(.98)'; summary.style.zIndex=3; summary.style.fontWeight=700; summary.textContent = (langCode==='en') ? 'Take care! Follow the advice.' : 'Будьте внимательны! Следуйте совету.'; card.appendChild(summary); setTimeout(()=>{ summary.style.transition='opacity .45s ease'; summary.style.opacity=0; setTimeout(()=>{ if(summary.parentNode) summary.parentNode.removeChild(summary); },500); },900); }, offset + 120));
+  cartoonTimers.push(setTimeout(()=>{ hideCartoonStage(); clearCartoonTimers(); }, offset + 1500));
 }
 
-/* ---------------- Speech Recognition (STT) ---------------- */
+function forceHideCartoon(){ hideCartoonStage(); clearCartoonTimers(); }
+function hideCartoonStage(){ const stage=document.getElementById('cartoonStage'); stage.classList.remove('show'); stage.setAttribute('aria-hidden','true'); ['scene-cold','scene-rain','scene-hot'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.classList.remove('show'); el.setAttribute('aria-hidden','true'); } }); }
+
+/* ========== Basic STT (toggle) ========== */
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null; let isListening = false;
 function ensureRecognition(){
@@ -552,104 +372,51 @@ function ensureRecognition(){
   recognition = new SpeechRecognition();
   recognition.continuous = true; recognition.interimResults = false;
   recognition.lang = mapLangToBCP47(langCode);
-  recognition.onresult = (ev)=>{
-    const last = ev.results[ev.results.length-1];
-    if(!last) return;
-    const text = (last[0]?.transcript||'').trim();
-    if(!text) return;
-    document.getElementById('recognized').innerText = `${tt('recognized_prefix')} ${text}`;
-    handleVoiceCommand(text.toLowerCase());
-  };
-  recognition.onstart = ()=>updateMicBadge(true);
-  recognition.onend = ()=>updateMicBadge(false);
-  recognition.onerror = ()=>updateMicBadge(false);
+  recognition.onresult = (ev)=>{ const last = ev.results[ev.results.length-1]; if(!last) return; const text = (last[0]?.transcript||'').trim(); if(!text) return; document.getElementById('recognized').innerText = `Распознано: ${text}`; handleVoiceCommand(text.toLowerCase()); };
+  recognition.onstart = ()=> updateMicState(true);
+  recognition.onend = ()=> updateMicState(false);
+  recognition.onerror = ()=> updateMicState(false);
   return recognition;
 }
-function updateMicBadge(on){ isListening = !!on; const b = document.getElementById('micState'); const btn = document.getElementById('micToggle'); b.classList.remove('on','off'); b.classList.add(on ? 'on' : 'off'); b.textContent = on ? tt('mic_on') : tt('mic_off'); btn.textContent = on ? tt('mic_btn_on') : tt('mic_btn_off'); }
-function startListening(){ const r = ensureRecognition(); if(!r){ document.getElementById('recognized').innerText = tt('browser_no_stt'); return; } try{ r.lang = mapLangToBCP47(langCode); r.start(); }catch(e){} }
+function updateMicState(on){ isListening = !!on; document.getElementById('micState').textContent = on ? (langCode==='en' ? 'microphone: on' : 'микрофон: вкл') : (langCode==='en' ? 'microphone: off' : 'микрофон: выкл'); document.getElementById('micToggle').textContent = on ? (langCode==='en' ? 'Turn off mic' : 'Выключить микрофон') : (langCode==='en' ? 'Turn on mic' : 'Включить микрофон'); }
+function startListening(){ const r=ensureRecognition(); if(!r){ document.getElementById('recognized').innerText = (langCode==='en'?'Your browser has no STT':'Ваш браузер не поддерживает распознавание речи.'); return; } try{ r.lang = mapLangToBCP47(langCode); r.start(); }catch(e){} }
 function stopListening(){ if(!recognition) return; try{ recognition.stop(); }catch(e){} }
 document.getElementById('micToggle').addEventListener('click', ()=>{ if(isListening) stopListening(); else startListening(); });
 
-/* ---------------- Voice command handling ---------------- */
-const commandPatterns = {
-  ru:{ stopKeywords:["стоп","остановить","выключить микрофон"], startKeywords:["начать","старт"], weatherKeywords:["погода"], langRegex:/\bязык\s+(ru|en|uk|hu|fr)\b/, countryRegex:/\bстрана\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/, reminderRegex:/\bнапомни\s+(?:в|на)\s+(\d{1,2}[:\.]\d{2})\s+(.+)/, services:[{keywords:["полици"],service:"полиция"},{keywords:["пожарн"],service:"пожарная"},{keywords:["скора"],service:"скорая"}] },
-  en:{ stopKeywords:["stop","turn off mic"], startKeywords:["start","begin"], weatherKeywords:["weather"], langRegex:/\blanguage\s+(ru|en|uk|hu|fr)\b/, countryRegex:/\bcountry\s+([a-zA-Z\s\.-]+)/, reminderRegex:/\bremind\s+(?:at|for)\s+(\d{1,2}[:\.]\d{2})\s+(.+)/, services:[{keywords:["police"],service:"полиция"},{keywords:["fire"],service:"пожарная"},{keywords:["ambulance"],service:"скорая"}] },
-  uk:{ stopKeywords:["стоп","зупини","вимкни мікрофон"], startKeywords:["почати","старт"], weatherKeywords:["погода"], langRegex:/\bмова\s+(ru|en|uk|hu|fr)\b/, countryRegex:/\bкраїна\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/, reminderRegex:/\bнагадай\s+(?:о|на)\s+(\d{1,2}[:\.]\d{2})\s+(.+)/, services:[{keywords:["поліці"],service:"полиция"},{keywords:["пожеж"],service:"пожарная"},{keywords:["швидк"],service:"скорая"}] },
-  hu:{ stopKeywords:["állj","állítsd le","kapcsold ki a mikrofont"], startKeywords:["indítás","indul"], weatherKeywords:["időjárás"], langRegex:/\bnyelv\s+(ru|en|uk|hu|fr)\b/, countryRegex:/\bország\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/, reminderRegex:/\bemlékeztess\s+(\d{1,2}[:\.]\d{2})(?:-kor)?\s+(.+)/, services:[{keywords:["rendőrs"],service:"полиция"},{keywords:["tűzolt"],service:"пожарная"},{keywords:["mentő"],service:"скорая"}] },
-  fr:{ stopKeywords:["arrête","arrêter","désactiver le micro"], startKeywords:["démarrer","commencer"], weatherKeywords:["météo"], langRegex:/\blangue\s+(ru|en|uk|hu|fr)\b/, countryRegex:/\bpays\s+([a-zA-Z\u0400-\u04FF\s\.-]+)/, reminderRegex:/\brappelle\s+à\s+(\d{1,2}[:\.]\d{2})\s+(.+)/, services:[{keywords:["police"],service:"полиция"},{keywords:["pompier","pompiers","feu"],service:"пожарная"},{keywords:["ambulance"],service:"скорая"}] }
+/* Minimal voice command handling (start, language change, reminder short form, weather) */
+const voicePatterns = {
+  ru: { startKeywords:['начать','старт'], langRegex:/\bязык\s+(ru|en|uk|hu|fr)\b/, remind:/\bнапомни\s+(?:в|на)\s+(\d{1,2}[:\.]\d{2})\s+(.+)/, weatherKeywords:['погода'] },
+  en: { startKeywords:['start','begin'], langRegex:/\blanguage\s+(ru|en|uk|hu|fr)\b/, remind:/\bremind\s+(?:at|for)\s+(\d{1,2}[:\.]\d{2})\s+(.+)/, weatherKeywords:['weather'] }
 };
-
-function handleVoiceCommand(originalText){
-  const text = originalText.toLowerCase();
-  const patterns = commandPatterns[langCode] || commandPatterns.ru;
-  if(patterns.stopKeywords.some(k=>text.includes(k))){ stopListening(); return; }
-  if(patterns.startKeywords.some(k=>text.includes(k))){ startApp(); return; }
-  const langMatch = text.match(patterns.langRegex);
-  if(langMatch){ setLanguage(langMatch[1]); document.getElementById('langInput').value = langCode; speakWithCallback(tt('lang_set',langCode) || (`Language set ${langCode}`), langCode, null); return; }
-  if(patterns.weatherKeywords.some(k=>text.includes(k))){
-    if(lastLocation){ getWeather(lastLocation.lat,lastLocation.lon).then(w=>{ if(w){ document.getElementById('weather').innerText = `Погода: ${w.temp}°C, ${w.desc}`; speakWithCallback(tt('now_weather_tts',w.temp,w.desc),langCode,null); } }); }
-    else speakWithCallback(tt('say_start_first'),langCode,null);
-    return;
-  }
-  const countryMatch = text.match(patterns.countryRegex);
-  if(countryMatch){ const candidate=countryMatch[1].trim(); currentCountry = normalizeCountryName(candidate); updateStatusCountryDisplay(); speakWithCallback(tt('country_set', translateCountryName(currentCountry, langCode)), langCode, null); return; }
-  for(const svc of (patterns.services||[])){ if(svc.keywords.some(k=>text.includes(k))){ emergencyCall(currentCountry, svc.service); return; } }
-  const remMatch = text.match(patterns.reminderRegex);
-  if(remMatch){ const rawTime = remMatch[1].replace('.',':'); const task = remMatch[2].trim(); if(lastLocation){ const id = Date.now()+Math.random(); const reminder = {id,time:rawTime,task,lat:lastLocation.lat,lon:lastLocation.lon,spoken:false}; reminders.push(reminder); saveReminders(); displayReminders(); scheduleReminderCheck(reminder); speakWithCallback(tt('reminder_set', rawTime, task), langCode, null); } else speakWithCallback(tt('say_start_first'),langCode,null); return; }
+function handleVoiceCommand(text){
+  const p = voicePatterns[langCode] || voicePatterns.ru;
+  if(p.startKeywords.some(k=>text.includes(k))){ startApp(); return; }
+  const lm = text.match(p.langRegex); if(lm){ setLanguage(lm[1]); document.getElementById('langInput').value = langCode; speakWithCallback((langCode==='en'?'Language set':'Язык установлен') + ': ' + langCode, langCode, null); return; }
+  if(p.weatherKeywords.some(k=>text.includes(k))){ if(lastLocation){ getWeather(lastLocation.lat,lastLocation.lon).then(w=>{ if(w){ document.getElementById('weather').innerText = `Погода: ${w.temp}°C, ${w.desc}`; speakWithCallback(tt('temp_weather_tts', w.temp, w.desc), langCode, null); } }); } else speakWithCallback(tt('locating'), langCode, null); return; }
+  const rm = text.match(p.remind); if(rm){ const time = rm[1].replace('.',':'); const task = rm[2].trim(); if(lastLocation){ const id = Date.now()+Math.random(); const r={id,time,task,lat:lastLocation.lat,lon:lastLocation.lon,spoken:false}; reminders.push(r); saveReminders(); displayReminders(); scheduleReminderCheck(r); speakWithCallback(tt('reminder_set', time, task), langCode, null); } else speakWithCallback(tt('locating'), langCode, null); return; }
 }
 
-/* ---------------- App start and status ---------------- */
+/* ========== Start app & init ========== */
 let lastLocation = null;
-let currentCountry = "Неизвестно";
-let weatherRefreshInterval = null;
-
-function applyStaticTranslations(){
-  document.querySelectorAll('[data-i18n]').forEach(node=>{
-    const key = node.getAttribute('data-i18n');
-    if(!key) return;
-    const txt = tt(key);
-    if(txt !== undefined) node.textContent = txt;
-  });
-  document.title = tt('title');
-  updateMicBadge(isListening);
-  updateStatusCountryDisplay();
-}
-
-function setLanguage(nextLang){
-  langCode = (nextLang || 'ru').toLowerCase();
-  document.documentElement.lang = langCode;
-  if(recognition) recognition.lang = mapLangToBCP47(langCode);
-  applyStaticTranslations();
-}
-
-function updateStatusCountryDisplay(){
-  const displayName = translateCountryName(currentCountry, langCode);
-  document.getElementById('status').innerText = tt('your_country', displayName);
-}
-
 async function startApp(){
-  const input = document.getElementById('langInput'); langCode = (input.value||'ru').toLowerCase(); setLanguage(langCode);
   document.getElementById('status').innerText = tt('locating');
   const loc = await getLocation();
-  if(!loc){ speakWithCallback(tt('location_failed'), langCode, null); document.getElementById('status').innerText = tt('location_failed'); return; }
+  if(!loc){ document.getElementById('status').innerText = tt('location_failed'); speakWithCallback(tt('location_failed'), langCode, null); return; }
   lastLocation = loc;
-  currentCountry = await getCountry(loc.lat, loc.lon);
-  updateStatusCountryDisplay();
-  const weather = await getWeather(loc.lat, loc.lon);
-  if(weather){ document.getElementById('weather').innerText = `Погода: ${weather.temp}°C, ${weather.desc}`; speakWithCallback(tt('temp_weather_tts', weather.temp, weather.desc), langCode, null); }
-  if(weatherRefreshInterval) clearInterval(weatherRefreshInterval);
-  weatherRefreshInterval = setInterval(async ()=>{ const w = await getWeather(loc.lat, loc.lon); if(w) document.getElementById('weather').innerText = `Погода: ${w.temp}°C, ${w.desc}`; }, 10*60*1000);
+  document.getElementById('status').innerText = (langCode==='en') ? 'Location set' : 'Местоположение определено';
+  const w = await getWeather(loc.lat, loc.lon);
+  if(w){ document.getElementById('weather').innerText = `Погода: ${w.temp}°C, ${w.desc}`; speakWithCallback(tt('temp_weather_tts', w.temp, w.desc), langCode, null); }
 }
 
-/* ---------------- Init ---------------- */
-document.getElementById('langInput').addEventListener('input',(e)=>setLanguage(e.target.value));
-applyStaticTranslations();
+/* init */
+document.getElementById('langInput').addEventListener('input',(e)=>{ langCode = (e.target.value||'ru').toLowerCase(); });
 loadReminders();
 
-/* expose helpers for debugging */
-window.showCartoonAnimation = showCartoonAnimation;
-window.showAdvicePopup = showAdvicePopup;
-window.getTempCategory = getTempCategory;
+/* expose helpers */
+window.showFullCartoon = showFullCartoon;
+window.forceHideCartoon = forceHideCartoon;
+window.getWeather = getWeather;
+
 </script>
 </body>
 </html>
