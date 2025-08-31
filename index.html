@@ -72,7 +72,6 @@
   - холодно -> можно надеть свитер/куртку
   - тепло -> лёгкая одежда/кепка и т.п.
   Переводы включены для ru/en/uk/hu/fr.
-  Также добавлено пояснение, почему был дан совет (основывается на текущей температуре).
 */
 
 let langCode = "ru";
@@ -127,8 +126,7 @@ const i18n = {
     recognized_prefix: "Распознано:",
     country_set: (c) => `Страна установлена: ${c}`,
     add_reminder: "Добавить",
-    clothing_advice_label: "Совет по одежде:",
-    clothing_explanation: (t) => `Пояснение: этот совет основан на текущей температуре ${t}°C.`
+    clothing_advice_label: "Совет по одежде:"
   },
   en: {
     title: "Emergency services and reminders",
@@ -172,8 +170,7 @@ const i18n = {
     recognized_prefix: "Recognized:",
     country_set: (c) => `Country set: ${c}`,
     add_reminder: "Add",
-    clothing_advice_label: "Clothing advice:",
-    clothing_explanation: (t) => `Explanation: this advice is based on the current temperature ${t}°C.`
+    clothing_advice_label: "Clothing advice:"
   },
   uk: {
     title: "Екстрені служби та нагадування",
@@ -217,8 +214,7 @@ const i18n = {
     recognized_prefix: "Розпізнано:",
     country_set: (c) => `Країну встановлено: ${c}`,
     add_reminder: "Додати",
-    clothing_advice_label: "Порада щодо одягу:",
-    clothing_explanation: (t) => `Пояснення: ця порада базується на поточній температурі ${t}°C.`
+    clothing_advice_label: "Порада щодо одягу:"
   },
   hu: {
     title: "Segélyhívás és emlékeztetők",
@@ -262,8 +258,7 @@ const i18n = {
     recognized_prefix: "Felismerve:",
     country_set: (c) => `Ország beállítva: ${c}`,
     add_reminder: "Hozzáad",
-    clothing_advice_label: "Öltözködési tanács:",
-    clothing_explanation: (t) => `Magyarázat: ez a tanács a jelenlegi, ${t}°C hőmérsékleten alapul.`
+    clothing_advice_label: "Öltözködési tanács:"
   },
   fr: {
     title: "Services d'urgence et rappels",
@@ -307,8 +302,7 @@ const i18n = {
     recognized_prefix: "Reconnu :",
     country_set: (c) => `Pays défini : ${c}`,
     add_reminder: "Ajouter",
-    clothing_advice_label: "Conseil vestimentaire :",
-    clothing_explanation: (t) => `Explication : ce conseil est basé sur la température actuelle de ${t}°C.`
+    clothing_advice_label: "Conseil vestimentaire :"
   }
 };
 
@@ -681,7 +675,7 @@ function displayReminders() {
   });
 }
 
-/* scheduleReminderCheck - improved: when reminder triggers, fetch weather and give clothing advice and explanation */
+/* scheduleReminderCheck - improved: when reminder triggers, fetch weather and give clothing advice */
 function scheduleReminderCheck(reminder) {
   const timer = setInterval(async () => {
     const now = new Date();
@@ -690,34 +684,23 @@ function scheduleReminderCheck(reminder) {
     if (`${hh}:${mm}` === reminder.time && !reminder.spoken) {
       reminder.spoken = true;
       const weather = await getWeather(reminder.lat, reminder.lon);
-      // Speak the reminder base (task + weather if available), then give clothing advice, then explain why that advice was given.
+      let msgBase = tt('reminder_set', reminder.time, reminder.task); // fallback base
+      let spokenMsg = msgBase;
       if (weather) {
         const temp = weather.temp;
         const desc = weather.desc;
-        // primary reminder message with weather
-        const baseMsg = tt('reminder_fire', reminder.task, temp, desc);
-        speak(baseMsg, langCode);
-
-        // clothing advice and explanation (if advice is available)
+        // base reminder with weather
+        spokenMsg = tt('reminder_fire', reminder.task, temp, desc);
+        // add clothing advice
         const advice = getClothingAdvice(temp);
         if (advice) {
-          // advice label if present
+          // Combine and also include a short label if available
           const label = tt('clothing_advice_label') || '';
-          // speak advice next
-          const adviceMsg = label ? `${label} ${advice}` : advice;
-          speak(adviceMsg, langCode);
-
-          // speak explanation why the advice was given
-          const explanation = tt('clothing_explanation', temp) || '';
-          if (explanation) speak(explanation, langCode);
+          spokenMsg = `${spokenMsg} ${label} ${advice}`;
         }
-      } else {
-        // fallback if no weather available
-        const baseMsg = tt('reminder_set', reminder.time, reminder.task);
-        speak(baseMsg, langCode);
       }
-
-      // cleanup: remove reminder from list
+      // speak and remove reminder
+      speak(spokenMsg, langCode);
       reminders = reminders.filter(r => r.id !== reminder.id);
       displayReminders();
       clearInterval(timer);
